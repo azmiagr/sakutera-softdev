@@ -14,6 +14,7 @@ type Service struct {
 	TransactionService ITransactionService
 	DashboardService   IDashboardService
 	PassportService    IPassportService
+	AccessService      IAccessService
 	JwtAuth            jwt.Interface
 }
 
@@ -24,6 +25,7 @@ func NewService(repository *repository.Repository, bcrypt bcrypt.Interface, jwtA
 		TransactionService: NewTransactionService(repository.TransactionRepo, repository.TransactionSourceRepo, repository.ForecastResultRepo, ml),
 		DashboardService:   NewDashboardService(repository.UserRepo, repository.TransactionRepo, repository.TransactionSourceRepo, repository.ForecastResultRepo),
 		PassportService:    NewPassportService(repository.IncomePassportRepo, repository.TransactionRepo, repository.ForecastResultRepo),
+		AccessService:      NewAccessService(repository.IncomePassportRepo, repository.ConsentRepo, repository.AccessLogRepo, repository.OrganizationRepo),
 		JwtAuth:            jwtAuth,
 	}
 }

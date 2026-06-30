@@ -182,6 +182,10 @@ func (s *TransactionService) GetLedger(userID uuid.UUID, period string, sourceID
 	var items []model.LedgerTransactionItem
 	for _, tx := range transactions {
 		src := sourceMap[tx.TransactionSourceID]
+		hashPrefix := ""
+		if len(tx.CurrentHash) >= 8 {
+			hashPrefix = tx.CurrentHash[:8]
+		}
 		items = append(items, model.LedgerTransactionItem{
 			TransactionID:   tx.TransactionID.String(),
 			SourceName:      src.Name,
@@ -190,7 +194,7 @@ func (s *TransactionService) GetLedger(userID uuid.UUID, period string, sourceID
 			TransactionDate: tx.TransactionDate.Format("2006-01-02"),
 			TransactionTime: tx.TransactionDate.Format("15:04"),
 			IsVerified:      true,
-			HashPrefix:      tx.CurrentHash[:8],
+			HashPrefix:      hashPrefix,
 		})
 	}
 

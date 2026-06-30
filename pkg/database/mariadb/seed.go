@@ -45,7 +45,11 @@ func Seed(db *gorm.DB) error {
 		}
 	}
 
-	return seedTransactionSources(db)
+	if err := seedTransactionSources(db); err != nil {
+		return err
+	}
+
+	return seedOrganizations(db)
 }
 
 func seedTransactionSources(db *gorm.DB) error {
@@ -60,6 +64,25 @@ func seedTransactionSources(db *gorm.DB) error {
 
 	for _, src := range sources {
 		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&src).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func seedOrganizations(db *gorm.DB) error {
+	orgs := []entity.Organization{
+		{OrganizationID: uuid.New(), Name: "Koperasi Sejahtera Jawa", Type: "fintech"},
+		{OrganizationID: uuid.New(), Name: "PT BPR Sentosa Digital", Type: "bank"},
+		{OrganizationID: uuid.New(), Name: "Bank XYZ Leasing", Type: "bank"},
+		{OrganizationID: uuid.New(), Name: "KoinWorks", Type: "fintech"},
+		{OrganizationID: uuid.New(), Name: "Amartha Mikro Fintek", Type: "fintech"},
+		{OrganizationID: uuid.New(), Name: "PT Astra Credit Companies", Type: "employer"},
+	}
+
+	for _, org := range orgs {
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&org).Error; err != nil {
 			return err
 		}
 	}

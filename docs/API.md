@@ -1064,4 +1064,200 @@ curl -X POST http://localhost:8080/api/v1/passport \
   -H "Authorization: Bearer JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"period": "3_bulan"}'
+
+# Lihat daftar akses
+curl -X GET http://localhost:8080/api/v1/passport/access \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Berikan akses ke organisasi
+curl -X POST http://localhost:8080/api/v1/passport/access \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"organization_id": "ORG_UUID", "data_scope": ["emi","stability","risk"], "expires_in_days": 30}'
+
+# Cabut akses
+curl -X PATCH http://localhost:8080/api/v1/passport/access/CONSENT_UUID/revoke \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Riwayat akses
+curl -X GET http://localhost:8080/api/v1/passport/access/logs \
+  -H "Authorization: Bearer JWT_TOKEN"
+```
+
+---
+
+## Kelola Akses Data
+
+### Get Consents (Screen 12)
+
+**GET** `/passport/access`
+
+Header: `Authorization: Bearer <token>`
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "daftar akses berhasil dimuat",
+  "data": {
+    "consents": [
+      {
+        "consent_id": "uuid",
+        "organization_name": "Koperasi Sejahtera Jawa",
+        "organization_type": "fintech",
+        "granted_at": "29 Jun 2026",
+        "data_scope": ["EMI", "Tren Stabilitas", "Risiko"],
+        "expires_at": "29 Jul 2026",
+        "days_remaining": 30,
+        "status": "active",
+        "status_label": "AKTIF",
+        "purpose": ""
+      }
+    ]
+  }
+}
+```
+
+> `status_label`: `"AKTIF"` (aktif), `"X HR LAGI"` (≤3 hari sebelum kedaluwarsa), `"DICABUT"` (dicabut), `"KEDALUWARSA"` (expired).
+
+---
+
+### Grant Access (Bagikan ke Pihak Baru)
+
+**POST** `/passport/access`
+
+Header: `Authorization: Bearer <token>`
+
+Request:
+```json
+{
+  "organization_id": "uuid-organisasi",
+  "data_scope": ["emi", "stability", "risk"],
+  "expires_in_days": 30,
+  "purpose": "Penilaian kredit motor"
+}
+```
+
+> `data_scope` valid values: `"emi"`, `"stability"`, `"risk"`, `"full"`. `expires_in_days` = 0 berarti tidak ada batas waktu.
+
+Response `201 Created`:
+```json
+{
+  "status": { "code": 201, "isSuccess": true },
+  "message": "akses berhasil diberikan",
+  "data": null
+}
+```
+
+Response `400 Bad Request` (passport belum diterbitkan):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "income passport belum diterbitkan",
+  "data": null
+}
+```
+
+Response `409 Conflict` (akses sudah ada):
+```json
+{
+  "status": { "code": 409, "isSuccess": false },
+  "message": "akses untuk organisasi ini sudah aktif",
+  "data": null
+}
+```
+
+---
+
+### Revoke Access (Cabut Akses)
+
+**PATCH** `/passport/access/:consent_id/revoke`
+
+Header: `Authorization: Bearer <token>`
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "akses berhasil dicabut",
+  "data": null
+}
+```
+
+Response `404 Not Found`:
+```json
+{
+  "status": { "code": 404, "isSuccess": false },
+  "message": "akses tidak ditemukan",
+  "data": null
+}
+```
+
+---
+
+## Riwayat Akses Data
+
+### Get Access Logs (Screen 13)
+
+**GET** `/passport/access/logs?filter=`
+
+Header: `Authorization: Bearer <token>`
+
+Query params:
+- `filter` (opsional): `""` (semua) atau `"income_passport"`
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "riwayat akses berhasil dimuat",
+  "data": {
+    "logs": [
+      {
+        "access_log_id": "uuid",
+        "organization_name": "Koperasi Sejahtera Jawa",
+        "organization_type": "fintech",
+        "accessed_at": "29 Jun 2026 · 14:32 WIB",
+        "data_scope": ["EMI", "Tren Stabilitas", "Risiko"],
+        "consent_status": "active",
+        "status_label": "VALID",
+        "note": "Kamu sudah diberitahu"
+      },
+      {
+        "access_log_id": "uuid",
+        "organization_name": "Bank XYZ Leasing",
+        "organization_type": "bank",
+        "accessed_at": "05 Jun 2026 · 11:20 WIB",
+        "data_scope": ["Akses penuh"],
+        "consent_status": "revoked",
+        "status_label": "DICABUT",
+        "note": "Akses dicabut oleh kamu · 8 Jun"
+      }
+    ]
+  }
+}
+```
+
+> `status_label`: `"VALID"` jika consent masih aktif, `"DICABUT"` jika sudah dicabut.
+
+---
+
+## Daftar Organisasi
+
+### Get Organizations
+
+**GET** `/organizations`
+
+Header: `Authorization: Bearer <token>`
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "daftar organisasi berhasil dimuat",
+  "data": [
+    { "organization_id": "uuid", "name": "Koperasi Sejahtera Jawa", "type": "fintech" },
+    { "organization_id": "uuid", "name": "PT BPR Sentosa Digital", "type": "bank" }
+  ]
+}
 ```

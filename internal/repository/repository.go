@@ -12,6 +12,9 @@ type Repository struct {
 	TransactionSourceRepo ITransactionSourceRepository
 	ForecastResultRepo    IForecastResultRepository
 	IncomePassportRepo    IIncomePassportRepository
+	ConsentRepo           IConsentRepository
+	AccessLogRepo         IAccessLogRepository
+	OrganizationRepo      IOrganizationRepository
 }
 
 func NewRepository(db *gorm.DB) *Repository {
@@ -25,5 +28,8 @@ func NewRepository(db *gorm.DB) *Repository {
 		TransactionSourceRepo: NewTransactionSourceRepository(db),
 		ForecastResultRepo:    NewForecastResultRepository(db),
 		IncomePassportRepo:    NewIncomePassportRepository(db),
+		ConsentRepo:           NewConsentRepository(db),
+		AccessLogRepo:         NewAccessLogRepository(db),
+		OrganizationRepo:      NewOrganizationRepository(db),
 	}
 }

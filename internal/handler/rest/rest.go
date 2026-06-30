@@ -51,6 +51,12 @@ func (r *Rest) MountEndpoint() {
 	passport.GET("", r.GetPassport)
 	passport.GET("/preview", r.PreviewPassport)
 	passport.POST("", r.IssuePassport)
+	passport.GET("/access", r.GetConsents)
+	passport.POST("/access", r.GrantAccess)
+	passport.PATCH("/access/:consent_id/revoke", r.RevokeAccess)
+	passport.GET("/access/logs", r.GetAccessLogs)
+
+	protected.GET("/organizations", r.GetOrganizations)
 
 	tx := protected.Group("/transactions")
 	tx.GET("/sources", r.GetTransactionSources)

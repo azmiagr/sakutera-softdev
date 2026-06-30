@@ -12,4 +12,5 @@ type AccessLog struct {
 	OrganizationID uuid.UUID `json:"organization_id" gorm:"type:varchar(36);index"`
 	AccessedAt     time.Time `json:"accessed_at" gorm:"type:datetime;not null"`
 	Status         string    `json:"status" gorm:"type:enum('success','failed','pending');not null"`
+	Note           string    `json:"note" gorm:"type:varchar(255)"`
 }
