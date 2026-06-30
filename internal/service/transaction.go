@@ -135,6 +135,10 @@ func (s *TransactionService) GetTransactions(userID uuid.UUID, limit int) (*mode
 	var items []model.TransactionItem
 	for _, tx := range transactions {
 		src := sourceMap[tx.TransactionSourceID]
+		hashPrefix := ""
+		if len(tx.CurrentHash) >= 8 {
+			hashPrefix = tx.CurrentHash[:8]
+		}
 		items = append(items, model.TransactionItem{
 			TransactionID:   tx.TransactionID.String(),
 			SourceName:      src.Name,
@@ -142,7 +146,7 @@ func (s *TransactionService) GetTransactions(userID uuid.UUID, limit int) (*mode
 			Amount:          tx.Amount,
 			TransactionDate: tx.TransactionDate.Format("2006-01-02"),
 			Category:        tx.Category,
-			HashPrefix:      tx.CurrentHash[:8],
+			HashPrefix:      hashPrefix,
 		})
 	}
 
