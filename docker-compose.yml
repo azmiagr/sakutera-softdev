@@ -22,6 +22,8 @@ services:
     image: mariadb:11.4
     container_name: sakutera-db
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       MARIADB_DATABASE: ${DB_NAME:-sakutera}

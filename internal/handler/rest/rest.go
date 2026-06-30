@@ -31,6 +31,13 @@ func (r *Rest) MountEndpoint() {
 	auth := baseURL.Group("/auth")
 	auth.POST("/register", r.Register)
 	auth.POST("/verify-otp", r.VerifyOTP)
+
+	onboarding := baseURL.Group("/onboarding")
+	onboarding.Use(r.middleware.AuthenticateUser())
+	onboarding.GET("/work-categories", r.GetWorkCategories)
+	onboarding.POST("/work-platform", r.SelectWorkPlatform)
+	onboarding.GET("/income-sources", r.GetIncomeSources)
+	onboarding.POST("/income-source", r.SelectIncomeSource)
 }
 
 func (r *Rest) Run() {

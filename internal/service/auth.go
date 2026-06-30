@@ -23,6 +23,7 @@ import (
 type IAuthService interface {
 	Register(req model.RegisterRequest) (*model.RegisterResponse, error)
 	VerifyOTP(sessionToken string, req model.VerifyOTPRequest) (*model.VerifyOTPResponse, error)
+	GetUserByID(userID uuid.UUID) (*entity.User, error)
 }
 
 type AuthService struct {
@@ -159,6 +160,14 @@ func (s *AuthService) VerifyOTP(sessionToken string, req model.VerifyOTPRequest)
 		Token:   token,
 		Message: "Akun berhasil diverifikasi",
 	}, nil
+}
+
+func (s *AuthService) GetUserByID(userID uuid.UUID) (*entity.User, error) {
+	user, err := s.userRepo.GetUser(s.db, model.UserParam{UserID: userID})
+	if err != nil {
+		return nil, apperrors.NotFound("user tidak ditemukan")
+	}
+	return user, nil
 }
 
 func generateOTPCode() (string, error) {

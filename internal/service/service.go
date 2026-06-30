@@ -7,11 +7,15 @@ import (
 )
 
 type Service struct {
-	AuthService IAuthService
+	AuthService       IAuthService
+	OnboardingService IOnboardingService
+	JwtAuth           jwt.Interface
 }
 
 func NewService(repository *repository.Repository, bcrypt bcrypt.Interface, jwtAuth jwt.Interface) *Service {
 	return &Service{
-		AuthService: NewAuthService(repository.UserRepo, repository.SessionRepo, repository.OTPRepo, jwtAuth),
+		AuthService:       NewAuthService(repository.UserRepo, repository.SessionRepo, repository.OTPRepo, jwtAuth),
+		OnboardingService: NewOnboardingService(repository.UserRepo, repository.WorkCategoryRepo, repository.WorkPlatformRepo),
+		JwtAuth:           jwtAuth,
 	}
 }
