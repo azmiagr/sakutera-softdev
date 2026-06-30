@@ -13,6 +13,7 @@ import (
 	"github.com/azmiagr/sakutera-softdev/model"
 	"github.com/azmiagr/sakutera-softdev/pkg/database/mariadb"
 	apperrors "github.com/azmiagr/sakutera-softdev/pkg/errors"
+	"github.com/azmiagr/sakutera-softdev/pkg/bcrypt"
 	"github.com/azmiagr/sakutera-softdev/pkg/jwt"
 	"github.com/azmiagr/sakutera-softdev/pkg/whatsapp"
 	"github.com/google/uuid"
@@ -24,6 +25,9 @@ type IAuthService interface {
 	Register(req model.RegisterRequest) (*model.RegisterResponse, error)
 	VerifyOTP(sessionToken string, req model.VerifyOTPRequest) (*model.VerifyOTPResponse, error)
 	GetUserByID(userID uuid.UUID) (*entity.User, error)
+	CheckPhoneNumber(phone string) (*model.CheckPhoneResponse, error)
+	SetPIN(sessionToken string, pin string) (*model.SetPINResponse, error)
+	LoginWithPIN(phone string, pin string) (*model.LoginResponse, error)
 }
 
 type AuthService struct {
@@ -32,16 +36,18 @@ type AuthService struct {
 	sessionRepo repository.ISessionRepository
 	otpRepo     repository.IOTPRepository
 	jwtAuth     jwt.Interface
+	bcrypt      bcrypt.Interface
 	whatsapp    whatsapp.Interface
 }
 
-func NewAuthService(userRepo repository.IUserRepository, sessionRepo repository.ISessionRepository, otpRepo repository.IOTPRepository, jwtAuth jwt.Interface, wa whatsapp.Interface) IAuthService {
+func NewAuthService(userRepo repository.IUserRepository, sessionRepo repository.ISessionRepository, otpRepo repository.IOTPRepository, jwtAuth jwt.Interface, bcrypt bcrypt.Interface, wa whatsapp.Interface) IAuthService {
 	return &AuthService{
 		db:          mariadb.Connection,
 		userRepo:    userRepo,
 		sessionRepo: sessionRepo,
 		otpRepo:     otpRepo,
 		jwtAuth:     jwtAuth,
+		bcrypt:      bcrypt,
 		whatsapp:    wa,
 	}
 }
@@ -161,6 +167,101 @@ func (s *AuthService) VerifyOTP(sessionToken string, req model.VerifyOTPRequest)
 		Token:   token,
 		Message: "Akun berhasil diverifikasi",
 	}, nil
+}
+
+func (s *AuthService) CheckPhoneNumber(phone string) (*model.CheckPhoneResponse, error) {
+	user, err := s.userRepo.GetUser(s.db, model.UserParam{PhoneNumber: phone})
+	if err != nil {
+		return nil, apperrors.NotFound("nomor HP tidak terdaftar")
+	}
+	if user.Status != "active" {
+		return nil, apperrors.BadRequest("akun belum diverifikasi, silakan daftar terlebih dahulu")
+	}
+	if user.PINNumber != "" {
+		return &model.CheckPhoneResponse{HasPIN: true}, nil
+	}
+
+	_ = s.sessionRepo.DeleteSessionByUserID(s.db, user.UserID.String())
+	sessionToken, err := s.jwtAuth.CreateJWTToken(user.UserID, "session")
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal membuat session token")
+	}
+	sessionEntity := &entity.Session{
+		SessionID: uuid.New(),
+		UserID:    user.UserID,
+		Token:     sessionToken,
+		ExpiredAt: time.Now().Add(10 * time.Minute),
+	}
+	if err := s.sessionRepo.CreateSession(s.db, sessionEntity); err != nil {
+		return nil, apperrors.InternalServer("gagal menyimpan session")
+	}
+	return &model.CheckPhoneResponse{HasPIN: false, SessionToken: sessionToken}, nil
+}
+
+func (s *AuthService) SetPIN(sessionToken string, pin string) (*model.SetPINResponse, error) {
+	session, err := s.sessionRepo.GetSessionByToken(s.db, sessionToken)
+	if err != nil || time.Now().After(session.ExpiredAt) {
+		return nil, apperrors.Unauthorized("session tidak valid atau sudah kedaluwarsa")
+	}
+	if !isValidPIN(pin) {
+		return nil, apperrors.BadRequest("PIN harus 6 digit angka")
+	}
+
+	user, err := s.userRepo.GetUser(s.db, model.UserParam{UserID: session.UserID})
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal mengambil data pengguna")
+	}
+
+	hashed, err := s.bcrypt.GenerateFromPassword(pin)
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal mengenkripsi PIN")
+	}
+	user.PINNumber = hashed
+	if err := s.userRepo.UpdateUser(s.db, user); err != nil {
+		return nil, apperrors.InternalServer("gagal menyimpan PIN")
+	}
+
+	_ = s.sessionRepo.DeleteSessionByUserID(s.db, user.UserID.String())
+
+	token, err := s.jwtAuth.CreateJWTToken(user.UserID, "user")
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal membuat token autentikasi")
+	}
+	return &model.SetPINResponse{Token: token, Message: "PIN berhasil dibuat"}, nil
+}
+
+func (s *AuthService) LoginWithPIN(phone string, pin string) (*model.LoginResponse, error) {
+	user, err := s.userRepo.GetUser(s.db, model.UserParam{PhoneNumber: phone})
+	if err != nil {
+		return nil, apperrors.NotFound("nomor HP tidak terdaftar")
+	}
+	if user.Status != "active" {
+		return nil, apperrors.BadRequest("akun belum diverifikasi, silakan daftar terlebih dahulu")
+	}
+	if user.PINNumber == "" {
+		return nil, apperrors.BadRequest("PIN belum dibuat, silakan buat PIN terlebih dahulu")
+	}
+	if err := s.bcrypt.CompareAndHashPassword(user.PINNumber, pin); err != nil {
+		return nil, apperrors.Unauthorized("PIN tidak valid")
+	}
+
+	token, err := s.jwtAuth.CreateJWTToken(user.UserID, "user")
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal membuat token autentikasi")
+	}
+	return &model.LoginResponse{Token: token, Message: "Login berhasil"}, nil
+}
+
+func isValidPIN(pin string) bool {
+	if len(pin) != 6 {
+		return false
+	}
+	for _, c := range pin {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *AuthService) GetUserByID(userID uuid.UUID) (*entity.User, error) {

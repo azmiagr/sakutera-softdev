@@ -31,6 +31,9 @@ func (r *Rest) MountEndpoint() {
 	auth := baseURL.Group("/auth")
 	auth.POST("/register", r.Register)
 	auth.POST("/verify-otp", r.VerifyOTP)
+	auth.POST("/check-phone", r.CheckPhone)
+	auth.POST("/set-pin", r.SetPIN)
+	auth.POST("/login", r.LoginWithPIN)
 
 	onboarding := baseURL.Group("/onboarding")
 	onboarding.Use(r.middleware.AuthenticateUser())
@@ -43,6 +46,11 @@ func (r *Rest) MountEndpoint() {
 	protected.Use(r.middleware.AuthenticateUser())
 	protected.GET("/dashboard", r.GetDashboard)
 	protected.GET("/ledger", r.GetLedger)
+
+	passport := protected.Group("/passport")
+	passport.GET("", r.GetPassport)
+	passport.GET("/preview", r.PreviewPassport)
+	passport.POST("", r.IssuePassport)
 
 	tx := protected.Group("/transactions")
 	tx.GET("/sources", r.GetTransactionSources)

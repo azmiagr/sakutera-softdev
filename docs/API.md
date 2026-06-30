@@ -75,6 +75,148 @@ Response `400 Bad Request` (field kosong):
 
 ---
 
+### Check Phone (Login Flow)
+
+**POST** `/auth/check-phone`
+
+Request:
+```json
+{ "phone_number": "081234567890" }
+```
+
+Response `200 OK` — sudah punya PIN:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "nomor ditemukan",
+  "data": { "has_pin": true }
+}
+```
+
+Response `200 OK` — belum punya PIN:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "nomor ditemukan, silakan buat PIN terlebih dahulu",
+  "data": {
+    "has_pin": false,
+    "session_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+Response `404 Not Found`:
+```json
+{
+  "status": { "code": 404, "isSuccess": false },
+  "message": "nomor HP tidak terdaftar",
+  "data": null
+}
+```
+
+Response `400 Bad Request` (belum verifikasi OTP):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "akun belum diverifikasi, silakan daftar terlebih dahulu",
+  "data": null
+}
+```
+
+---
+
+### Set PIN
+
+**POST** `/auth/set-pin`
+
+Header:
+```
+X-Session-Token: <session_token dari check-phone>
+```
+
+Request:
+```json
+{ "pin": "123456" }
+```
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "PIN berhasil dibuat",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "message": "PIN berhasil dibuat"
+  }
+}
+```
+
+> Setelah set PIN, simpan `token` ini sebagai `Authorization: Bearer <token>`.
+
+Response `400 Bad Request` (PIN bukan 6 digit angka):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "PIN harus 6 digit angka",
+  "data": null
+}
+```
+
+Response `401 Unauthorized` (session expired):
+```json
+{
+  "status": { "code": 401, "isSuccess": false },
+  "message": "session tidak valid atau sudah kedaluwarsa",
+  "data": null
+}
+```
+
+---
+
+### Login
+
+**POST** `/auth/login`
+
+Request:
+```json
+{
+  "phone_number": "081234567890",
+  "pin": "123456"
+}
+```
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "Login berhasil",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "message": "Login berhasil"
+  }
+}
+```
+
+Response `404 Not Found`:
+```json
+{
+  "status": { "code": 404, "isSuccess": false },
+  "message": "nomor HP tidak terdaftar",
+  "data": null
+}
+```
+
+Response `401 Unauthorized` (PIN salah):
+```json
+{
+  "status": { "code": 401, "isSuccess": false },
+  "message": "PIN tidak valid",
+  "data": null
+}
+```
+
+---
+
 ### Step 2 — Verify OTP
 
 **POST** `/auth/verify-otp`
@@ -363,6 +505,138 @@ Response `400 Bad Request` (tipe tidak valid — hanya `manual` yang diizinkan s
   },
   "message": "request tidak valid",
   "data": "Key: 'SelectIncomeSourceRequest.IncomeSourceType' Error:Field validation for 'IncomeSourceType' failed on the 'oneof' tag"
+}
+```
+
+---
+
+## Income Passport
+
+Semua endpoint passport memerlukan header:
+```
+Authorization: Bearer <token dari Step 2>
+```
+
+---
+
+### GET Income Passport
+
+**GET** `/passport`
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "income passport berhasil dimuat",
+  "data": {
+    "eligibility": {
+      "is_eligible": true,
+      "days_of_data": 63,
+      "min_required": 30,
+      "entries_verified": 63
+    },
+    "active_passport": {
+      "income_passport_id": "uuid",
+      "passport_number": "SKT-2026-RH-A3F7B2C1",
+      "emi_value": 6850000,
+      "period_type": "3_bulan",
+      "period_label": "Apr–Jun 2026",
+      "risk_level": "RENDAH",
+      "issued_at": "2026-06-29"
+    }
+  }
+}
+```
+
+> `active_passport` = `null` jika user belum pernah menerbitkan passport.
+
+---
+
+### Preview Passport (Konfirmasi Penerbitan)
+
+**GET** `/passport/preview`
+
+Query Params:
+
+| Param | Wajib | Keterangan |
+|-------|-------|-----------|
+| `period` | ✅ | `3_bulan` \| `6_bulan` \| `12_bulan` |
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "preview passport berhasil dimuat",
+  "data": {
+    "period_type": "3_bulan",
+    "period_label": "Apr–Jun",
+    "period_start": "2026-04-01",
+    "period_end": "2026-06-30",
+    "emi_value": 6850000,
+    "stability_label": "STABIL",
+    "trend_direction": "up",
+    "trend_change_pct": 12.0,
+    "risk_level": "RENDAH",
+    "risk_score": 0.15,
+    "total_entries": 63
+  }
+}
+```
+
+> `emi_value` = total penghasilan dalam periode dibagi jumlah bulan.  
+> `stability_label`: `STABIL` (trend up) · `CUKUP STABIL` (stable) · `FLUKTUATIF` (down).
+
+Response `400 Bad Request` (forecast belum ada):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "data forecast belum tersedia, catat minimal 30 hari transaksi terlebih dahulu",
+  "data": null
+}
+```
+
+---
+
+### Terbitkan Passport
+
+**POST** `/passport`
+
+Request:
+```json
+{
+  "period": "3_bulan"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|-----------|
+| `period` | string | ✅ | `3_bulan` \| `6_bulan` \| `12_bulan` |
+
+Response `201 Created`:
+```json
+{
+  "status": { "code": 201, "isSuccess": true },
+  "message": "income passport berhasil diterbitkan",
+  "data": {
+    "income_passport_id": "uuid",
+    "passport_number": "SKT-2026-RH-A3F7B2C1",
+    "emi_value": 6850000,
+    "period_type": "3_bulan",
+    "period_label": "Apr–Jun 2026",
+    "risk_level": "RENDAH",
+    "issued_at": "2026-06-29"
+  }
+}
+```
+
+> `passport_number` format: `SKT-{TAHUN}-{2 HURUF ACAK}-{8 KARAKTER HASH TERAKHIR}`.
+
+Response `400 Bad Request` (period tidak valid):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "request tidak valid",
+  "data": "Key: 'IssuePassportRequest.Period' Error:Field validation for 'Period' failed on the 'oneof' tag"
 }
 ```
 
@@ -764,4 +1038,30 @@ curl -X GET "http://localhost:8080/api/v1/ledger?source_id=SOURCE_ID" \
 # Kombinasi filter
 curl -X GET "http://localhost:8080/api/v1/ledger?period=bulan_ini&source_id=SOURCE_ID" \
   -H "Authorization: Bearer JWT_TOKEN"
+```
+
+---
+
+### Income Passport:
+
+```bash
+# Cek eligibilitas & passport aktif
+curl -X GET http://localhost:8080/api/v1/passport \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Preview sebelum terbitkan (pilih periode)
+curl -X GET "http://localhost:8080/api/v1/passport/preview?period=3_bulan" \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+curl -X GET "http://localhost:8080/api/v1/passport/preview?period=6_bulan" \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+curl -X GET "http://localhost:8080/api/v1/passport/preview?period=12_bulan" \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Terbitkan passport
+curl -X POST http://localhost:8080/api/v1/passport \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"period": "3_bulan"}'
 ```
