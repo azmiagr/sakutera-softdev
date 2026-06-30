@@ -42,6 +42,7 @@ func (r *Rest) MountEndpoint() {
 	protected := baseURL.Group("")
 	protected.Use(r.middleware.AuthenticateUser())
 	protected.GET("/dashboard", r.GetDashboard)
+	protected.GET("/ledger", r.GetLedger)
 
 	tx := protected.Group("/transactions")
 	tx.GET("/sources", r.GetTransactionSources)

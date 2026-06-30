@@ -5,8 +5,10 @@ import (
 	"strconv"
 
 	"github.com/azmiagr/sakutera-softdev/model"
+	apperr "github.com/azmiagr/sakutera-softdev/pkg/errors"
 	"github.com/azmiagr/sakutera-softdev/pkg/response"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func (r *Rest) GetTransactionSources(c *gin.Context) {
@@ -61,4 +63,35 @@ func (r *Rest) GetTransactions(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "transaksi berhasil diambil", resp)
+}
+
+func (r *Rest) GetLedger(c *gin.Context) {
+	user, err := r.service.JwtAuth.GetLoginUser(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "user tidak ditemukan", err)
+		return
+	}
+
+	period := c.Query("period")
+	if period == "" {
+		period = "all"
+	}
+
+	var sourceID *uuid.UUID
+	if raw := c.Query("source_id"); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil {
+			response.HandleError(c, apperr.BadRequest("source_id tidak valid"))
+			return
+		}
+		sourceID = &parsed
+	}
+
+	resp, err := r.service.TransactionService.GetLedger(user.UserID, period, sourceID)
+	if err != nil {
+		response.HandleError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "buku kas berhasil diambil", resp)
 }

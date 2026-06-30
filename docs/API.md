@@ -368,6 +368,296 @@ Response `400 Bad Request` (tipe tidak valid — hanya `manual` yang diizinkan s
 
 ---
 
+## Dashboard
+
+### GET Dashboard
+
+**GET** `/dashboard`
+
+Header:
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "dashboard berhasil dimuat",
+  "data": {
+    "user_full_name": "Rudi",
+    "today_income": 285000,
+    "valid_chain_count": 63,
+    "forecast": {
+      "emi_value": 6850000,
+      "confidence": "high",
+      "trend_direction": "up",
+      "trend_change_pct": 12.0,
+      "month_to_date_income": 285000,
+      "forecast_total": 6850000,
+      "risk_level": "RENDAH",
+      "risk_score": 0.15,
+      "is_data_sufficient": true,
+      "days_of_data": 63,
+      "transaction_count": 63,
+      "model_name": "prophet"
+    },
+    "recent_transactions": [
+      {
+        "transaction_id": "uuid",
+        "source_name": "Gojek",
+        "source_provider": "GoPay",
+        "amount": 285000,
+        "transaction_date": "2026-06-29",
+        "category": "Trip sore",
+        "hash_prefix": "a3E7b2c1"
+      }
+    ],
+    "trend_data": [
+      { "date": "2026-06-01", "amount": 350000 },
+      { "date": "2026-06-02", "amount": 0 },
+      { "date": "2026-06-03", "amount": 420000 }
+    ]
+  }
+}
+```
+
+> `forecast` akan `null` jika user belum pernah mencatat transaksi sama sekali.
+
+---
+
+## Buku Kas Digital
+
+### GET Ledger
+
+**GET** `/ledger`
+
+Header:
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Query Params (opsional):
+
+| Param | Default | Keterangan |
+|-------|---------|-----------|
+| `period` | `all` | Filter periode: `all` \| `bulan_ini` \| `3_bulan` |
+| `source_id` | — | UUID sumber penghasilan (dari `/transactions/sources`) |
+
+Filter dapat dikombinasikan. Contoh: `?period=bulan_ini&source_id=UUID`
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "buku kas berhasil diambil",
+  "data": {
+    "summary": {
+      "total_entries": 63,
+      "chain_valid": true
+    },
+    "transactions": [
+      {
+        "transaction_id": "uuid",
+        "source_name": "Gojek",
+        "source_provider": "GoPay",
+        "amount": 285000,
+        "transaction_date": "2026-06-29",
+        "transaction_time": "14:22",
+        "is_verified": true,
+        "hash_prefix": "a3f7b2c1"
+      }
+    ],
+    "total": 4
+  }
+}
+```
+
+> `chain_valid` selalu `true` — semua entri di ledger berstatus `success` (dijaga di level CreateTransaction).  
+> `transaction_time` format `"HH:MM"` (diambil dari kolom `transaction_date` yang bertipe `datetime`).  
+> `total_entries` = jumlah transaksi setelah filter diterapkan.
+
+Response `400 Bad Request` (period tidak valid):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "period tidak valid, gunakan: all, bulan_ini, atau 3_bulan",
+  "data": null
+}
+```
+
+Response `400 Bad Request` (source_id bukan UUID):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "source_id tidak valid",
+  "data": null
+}
+```
+
+---
+
+## Transaksi (Catat Penghasilan)
+
+Semua endpoint transaksi memerlukan header:
+```
+Authorization: Bearer <token dari Step 2>
+```
+
+---
+
+### List Sumber Penghasilan (Dropdown)
+
+**GET** `/transactions/sources`
+
+Header:
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "sumber penghasilan berhasil diambil",
+  "data": {
+    "sources": [
+      { "transaction_source_id": "uuid-1", "name": "Gojek",      "provider": "GoPay"     },
+      { "transaction_source_id": "uuid-2", "name": "Grab",       "provider": "OVO"       },
+      { "transaction_source_id": "uuid-3", "name": "ShopeeFood", "provider": "ShopeePay" },
+      { "transaction_source_id": "uuid-4", "name": "GoSend",     "provider": "GoPay"     },
+      { "transaction_source_id": "uuid-5", "name": "Tokopedia",  "provider": "Manual"    },
+      { "transaction_source_id": "uuid-6", "name": "Lainnya",    "provider": "Manual"    }
+    ]
+  }
+}
+```
+
+> Gunakan `transaction_source_id` dari response ini untuk isi field `transaction_source_id` saat Catat Penghasilan. Frontend menampilkan sebagai `"Gojek · GoPay"` (Name · Provider).
+
+---
+
+### Catat Penghasilan
+
+**POST** `/transactions`
+
+Header:
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+Request:
+```json
+{
+  "amount": 285000,
+  "transaction_source_id": "uuid-dari-sources",
+  "transaction_date": "2026-06-29",
+  "description": "Trip sore"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|-----------|
+| `amount` | number | ✅ | Nominal dalam IDR, harus > 0 |
+| `transaction_source_id` | string (UUID) | ✅ | Dari endpoint GET /transactions/sources |
+| `transaction_date` | string | ✅ | Format `YYYY-MM-DD` |
+| `description` | string | ❌ | Catatan opsional |
+
+Response `201 Created`:
+```json
+{
+  "status": { "code": 201, "isSuccess": true },
+  "message": "penghasilan berhasil dicatat ke ledger",
+  "data": {
+    "transaction_id": "uuid",
+    "amount": 285000,
+    "current_hash": "a3e7b2c1d4f5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1",
+    "status": "success",
+    "message": "penghasilan berhasil dicatat ke ledger"
+  }
+}
+```
+
+> `current_hash` adalah SHA-256 dari data transaksi yang di-chain dengan hash transaksi sebelumnya. Ini yang ditampilkan di UI sebagai 8 karakter pertama (e.g., `a3E7b2c1`).
+
+Response `400 Bad Request` (amount tidak valid):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "request tidak valid",
+  "data": "Key: 'CreateTransactionRequest.Amount' Error:Field validation for 'Amount' failed on the 'gt' tag"
+}
+```
+
+Response `400 Bad Request` (format tanggal salah):
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "format transaction_date tidak valid, gunakan YYYY-MM-DD",
+  "data": null
+}
+```
+
+Response `404 Not Found` (source tidak ditemukan):
+```json
+{
+  "status": { "code": 404, "isSuccess": false },
+  "message": "sumber penghasilan tidak ditemukan",
+  "data": null
+}
+```
+
+---
+
+### List Transaksi
+
+**GET** `/transactions?limit=20`
+
+Header:
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Query Params (opsional):
+
+| Param | Default | Keterangan |
+|-------|---------|-----------|
+| `limit` | 20 | Jumlah transaksi yang dikembalikan |
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "transaksi berhasil diambil",
+  "data": {
+    "transactions": [
+      {
+        "transaction_id": "uuid",
+        "source_name": "Gojek",
+        "source_provider": "GoPay",
+        "amount": 285000,
+        "transaction_date": "2026-06-29",
+        "category": "Trip sore",
+        "hash_prefix": "a3E7b2c1"
+      },
+      {
+        "transaction_id": "uuid",
+        "source_name": "Grab",
+        "source_provider": "OVO",
+        "amount": 195000,
+        "transaction_date": "2026-06-27",
+        "category": "",
+        "hash_prefix": "c1a9e3e7"
+      }
+    ],
+    "total": 2
+  }
+}
+```
+
+---
+
 ## Error Reference
 
 | HTTP Code | Situasi |
@@ -415,4 +705,63 @@ curl -X POST http://localhost:8080/api/v1/onboarding/income-source \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer JWT_TOKEN" \
   -d '{"income_source_type": "manual"}'
+```
+
+---
+
+### Dashboard & Transaksi:
+
+```bash
+# Dashboard
+curl -X GET http://localhost:8080/api/v1/dashboard \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# List sumber penghasilan (untuk dropdown Catat Penghasilan)
+curl -X GET http://localhost:8080/api/v1/transactions/sources \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Catat Penghasilan (ganti SOURCE_ID dengan UUID dari /transactions/sources)
+curl -X POST http://localhost:8080/api/v1/transactions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -d '{
+    "amount": 285000,
+    "transaction_source_id": "SOURCE_ID",
+    "transaction_date": "2026-06-29",
+    "description": "Trip sore"
+  }'
+
+# List transaksi
+curl -X GET http://localhost:8080/api/v1/transactions \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# List transaksi dengan limit custom
+curl -X GET "http://localhost:8080/api/v1/transactions?limit=10" \
+  -H "Authorization: Bearer JWT_TOKEN"
+```
+
+---
+
+### Buku Kas Digital:
+
+```bash
+# Semua transaksi
+curl -X GET http://localhost:8080/api/v1/ledger \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Filter bulan ini
+curl -X GET "http://localhost:8080/api/v1/ledger?period=bulan_ini" \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Filter 3 bulan terakhir
+curl -X GET "http://localhost:8080/api/v1/ledger?period=3_bulan" \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Filter by source (ganti SOURCE_ID dengan UUID dari /transactions/sources)
+curl -X GET "http://localhost:8080/api/v1/ledger?source_id=SOURCE_ID" \
+  -H "Authorization: Bearer JWT_TOKEN"
+
+# Kombinasi filter
+curl -X GET "http://localhost:8080/api/v1/ledger?period=bulan_ini&source_id=SOURCE_ID" \
+  -H "Authorization: Bearer JWT_TOKEN"
 ```

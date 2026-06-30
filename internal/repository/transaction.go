@@ -15,6 +15,7 @@ type ITransactionRepository interface {
 	GetByUserIDAndDateRange(tx *gorm.DB, userID uuid.UUID, from, to time.Time) ([]entity.Transaction, error)
 	CountSuccessByUserID(tx *gorm.DB, userID uuid.UUID) (int64, error)
 	SumTodayByUserID(tx *gorm.DB, userID uuid.UUID) (float64, error)
+	GetLedger(tx *gorm.DB, userID uuid.UUID, from, to *time.Time, sourceID *uuid.UUID) ([]entity.Transaction, error)
 }
 
 type TransactionRepository struct {
@@ -70,6 +71,22 @@ func (r *TransactionRepository) CountSuccessByUserID(tx *gorm.DB, userID uuid.UU
 		Where("user_id = ? AND status = ?", userID, "success").
 		Count(&count).Error
 	return count, err
+}
+
+func (r *TransactionRepository) GetLedger(tx *gorm.DB, userID uuid.UUID, from, to *time.Time, sourceID *uuid.UUID) ([]entity.Transaction, error) {
+	var transactions []entity.Transaction
+	q := tx.Where("user_id = ? AND status = ?", userID, "success")
+	if from != nil && to != nil {
+		q = q.Where("transaction_date BETWEEN ? AND ?", from, to)
+	}
+	if sourceID != nil {
+		q = q.Where("transaction_source_id = ?", sourceID)
+	}
+	err := q.Order("transaction_date DESC, created_at DESC").Find(&transactions).Error
+	if err != nil {
+		return nil, err
+	}
+	return transactions, nil
 }
 
 func (r *TransactionRepository) SumTodayByUserID(tx *gorm.DB, userID uuid.UUID) (float64, error) {

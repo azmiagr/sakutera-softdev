@@ -20,6 +20,7 @@ type ITransactionService interface {
 	GetSources() (*model.GetTransactionSourcesResponse, error)
 	CreateTransaction(userID uuid.UUID, req model.CreateTransactionRequest) (*model.CreateTransactionResponse, error)
 	GetTransactions(userID uuid.UUID, limit int) (*model.GetTransactionsResponse, error)
+	GetLedger(userID uuid.UUID, period string, sourceID *uuid.UUID) (*model.GetLedgerResponse, error)
 }
 
 type TransactionService struct {
@@ -146,6 +147,61 @@ func (s *TransactionService) GetTransactions(userID uuid.UUID, limit int) (*mode
 	}
 
 	return &model.GetTransactionsResponse{Transactions: items, Total: len(items)}, nil
+}
+
+func (s *TransactionService) GetLedger(userID uuid.UUID, period string, sourceID *uuid.UUID) (*model.GetLedgerResponse, error) {
+	var from, to *time.Time
+
+	switch period {
+	case "all", "":
+		// no date filter
+	case "bulan_ini":
+		now := time.Now()
+		f := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		t := now
+		from, to = &f, &t
+	case "3_bulan":
+		f := time.Now().AddDate(0, -3, 0)
+		t := time.Now()
+		from, to = &f, &t
+	default:
+		return nil, apperr.BadRequest("period tidak valid, gunakan: all, bulan_ini, atau 3_bulan")
+	}
+
+	transactions, err := s.transactionRepo.GetLedger(s.db, userID, from, to, sourceID)
+	if err != nil {
+		return nil, apperr.InternalServer("gagal mengambil buku kas")
+	}
+
+	sourceIDs := make([]uuid.UUID, 0, len(transactions))
+	for _, tx := range transactions {
+		sourceIDs = append(sourceIDs, tx.TransactionSourceID)
+	}
+	sourceMap := s.fetchSourceMap(sourceIDs)
+
+	var items []model.LedgerTransactionItem
+	for _, tx := range transactions {
+		src := sourceMap[tx.TransactionSourceID]
+		items = append(items, model.LedgerTransactionItem{
+			TransactionID:   tx.TransactionID.String(),
+			SourceName:      src.Name,
+			SourceProvider:  src.Provider,
+			Amount:          tx.Amount,
+			TransactionDate: tx.TransactionDate.Format("2006-01-02"),
+			TransactionTime: tx.TransactionDate.Format("15:04"),
+			IsVerified:      true,
+			HashPrefix:      tx.CurrentHash[:8],
+		})
+	}
+
+	return &model.GetLedgerResponse{
+		Summary: model.LedgerSummary{
+			TotalEntries: int64(len(items)),
+			ChainValid:   true,
+		},
+		Transactions: items,
+		Total:        len(items),
+	}, nil
 }
 
 func (s *TransactionService) fetchSourceMap(ids []uuid.UUID) map[uuid.UUID]*entity.TransactionSource {
