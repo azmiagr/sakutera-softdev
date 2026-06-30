@@ -3,6 +3,9 @@ set -e
 
 IMAGE="ghcr.io/${GITHUB_REPOSITORY:-azmiagr/sakutera-softdev}:latest"
 
+echo "Syncing latest config from repository..."
+git pull origin main
+
 echo "Pulling latest image: $IMAGE"
 docker pull "$IMAGE"
 
