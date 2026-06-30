@@ -35,13 +35,14 @@ type AuthService struct {
 	whatsapp    whatsapp.Interface
 }
 
-func NewAuthService(userRepo repository.IUserRepository, sessionRepo repository.ISessionRepository, otpRepo repository.IOTPRepository, jwtAuth jwt.Interface) IAuthService {
+func NewAuthService(userRepo repository.IUserRepository, sessionRepo repository.ISessionRepository, otpRepo repository.IOTPRepository, jwtAuth jwt.Interface, wa whatsapp.Interface) IAuthService {
 	return &AuthService{
 		db:          mariadb.Connection,
 		userRepo:    userRepo,
 		sessionRepo: sessionRepo,
 		otpRepo:     otpRepo,
 		jwtAuth:     jwtAuth,
+		whatsapp:    wa,
 	}
 }
 

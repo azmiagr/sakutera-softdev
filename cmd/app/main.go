@@ -10,6 +10,7 @@ import (
 	"github.com/azmiagr/sakutera-softdev/pkg/jwt"
 	"github.com/azmiagr/sakutera-softdev/pkg/middleware"
 	"github.com/azmiagr/sakutera-softdev/pkg/mlclient"
+	"github.com/azmiagr/sakutera-softdev/pkg/whatsapp"
 	"log"
 )
 
@@ -35,7 +36,8 @@ func main() {
 	bcrypt := bcrypt.Init()
 	jwt := jwt.Init()
 	ml := mlclient.Init()
-	svc := service.NewService(repo, bcrypt, jwt, ml)
+	wa := whatsapp.Init()
+	svc := service.NewService(repo, bcrypt, jwt, ml, wa)
 
 	middleware := middleware.Init(svc, jwt)
 	r := rest.NewRest(svc, middleware)
