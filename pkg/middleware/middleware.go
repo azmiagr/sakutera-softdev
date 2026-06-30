@@ -3,9 +3,11 @@ package middleware
 import (
 	"github.com/azmiagr/sakutera-softdev/internal/service"
 	"github.com/azmiagr/sakutera-softdev/pkg/jwt"
+	"github.com/gin-gonic/gin"
 )
 
 type Interface interface {
+	Cors() gin.HandlerFunc
 }
 
 type middleware struct {

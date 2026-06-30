@@ -1,0 +1,62 @@
+services:
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY:-azmiagr/sakutera-softdev}:latest
+    container_name: sakutera-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sakutera-net
+
+  db:
+    image: mariadb:11.4
+    container_name: sakutera-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MARIADB_DATABASE: ${DB_NAME:-sakutera}
+      MARIADB_USER: ${DB_USER:-sakutera_user}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-sakutera_pass}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - sakutera-net
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: sakutera-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sakutera-net
+
+volumes:
+  db_data:
+  redis_data:
+
+networks:
+  sakutera-net:
+    driver: bridge

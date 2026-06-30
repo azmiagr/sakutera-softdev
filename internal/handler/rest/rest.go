@@ -2,9 +2,10 @@ package rest
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/azmiagr/sakutera-softdev/internal/service"
 	"github.com/azmiagr/sakutera-softdev/pkg/middleware"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +25,12 @@ func NewRest(service *service.Service, middleware middleware.Interface) *Rest {
 }
 
 func (r *Rest) MountEndpoint() {
+	r.router.Use(r.middleware.Cors())
+	baseURL := r.router.Group("/api/v1")
 
+	auth := baseURL.Group("/auth")
+	auth.POST("/register", r.Register)
+	auth.POST("/verify-otp", r.VerifyOTP)
 }
 
 func (r *Rest) Run() {
