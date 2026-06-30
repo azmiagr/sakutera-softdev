@@ -77,7 +77,7 @@ func (s *OnboardingService) SelectWorkPlatform(userID uuid.UUID, req model.Selec
 		return nil, apperrors.NotFound("user tidak ditemukan")
 	}
 
-	user.WorkPlatformID = platformID
+	user.WorkPlatformID = &platformID
 	if err := s.userRepo.UpdateUser(s.db, user); err != nil {
 		return nil, apperrors.InternalServer("gagal menyimpan pekerjaan")
 	}

@@ -38,6 +38,15 @@ func (r *Rest) MountEndpoint() {
 	onboarding.POST("/work-platform", r.SelectWorkPlatform)
 	onboarding.GET("/income-sources", r.GetIncomeSources)
 	onboarding.POST("/income-source", r.SelectIncomeSource)
+
+	protected := baseURL.Group("")
+	protected.Use(r.middleware.AuthenticateUser())
+	protected.GET("/dashboard", r.GetDashboard)
+
+	tx := protected.Group("/transactions")
+	tx.GET("/sources", r.GetTransactionSources)
+	tx.POST("", r.CreateTransaction)
+	tx.GET("", r.GetTransactions)
 }
 
 func (r *Rest) Run() {

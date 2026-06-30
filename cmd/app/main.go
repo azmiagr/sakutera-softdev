@@ -9,6 +9,7 @@ import (
 	"github.com/azmiagr/sakutera-softdev/pkg/database/mariadb"
 	"github.com/azmiagr/sakutera-softdev/pkg/jwt"
 	"github.com/azmiagr/sakutera-softdev/pkg/middleware"
+	"github.com/azmiagr/sakutera-softdev/pkg/mlclient"
 	"log"
 )
 
@@ -33,7 +34,8 @@ func main() {
 	repo := repository.NewRepository(db)
 	bcrypt := bcrypt.Init()
 	jwt := jwt.Init()
-	svc := service.NewService(repo, bcrypt, jwt)
+	ml := mlclient.Init()
+	svc := service.NewService(repo, bcrypt, jwt, ml)
 
 	middleware := middleware.Init(svc, jwt)
 	r := rest.NewRest(svc, middleware)

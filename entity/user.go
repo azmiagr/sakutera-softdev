@@ -8,7 +8,7 @@ import (
 
 type User struct {
 	UserID         uuid.UUID `json:"id" gorm:"type:varchar(36);primaryKey"`
-	WorkPlatformID uuid.UUID `json:"work_platform_id" gorm:"type:varchar(36);index"`
+	WorkPlatformID *uuid.UUID `json:"work_platform_id" gorm:"type:varchar(36);index"`
 	FullName       string    `json:"full_name" gorm:"type:varchar(255);not null"`
 	PhoneNumber    string    `json:"phone_number" gorm:"type:varchar(15);not null"`
 	PINNumber      string    `json:"pin_number" gorm:"type:varchar(100)"`

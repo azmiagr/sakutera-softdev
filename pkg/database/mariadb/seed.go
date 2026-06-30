@@ -45,5 +45,24 @@ func Seed(db *gorm.DB) error {
 		}
 	}
 
+	return seedTransactionSources(db)
+}
+
+func seedTransactionSources(db *gorm.DB) error {
+	sources := []entity.TransactionSource{
+		{TransactionSourceID: uuid.New(), Name: "Gojek", Provider: "GoPay", IsActive: true},
+		{TransactionSourceID: uuid.New(), Name: "Grab", Provider: "OVO", IsActive: true},
+		{TransactionSourceID: uuid.New(), Name: "ShopeeFood", Provider: "ShopeePay", IsActive: true},
+		{TransactionSourceID: uuid.New(), Name: "GoSend", Provider: "GoPay", IsActive: true},
+		{TransactionSourceID: uuid.New(), Name: "Tokopedia", Provider: "Manual", IsActive: true},
+		{TransactionSourceID: uuid.New(), Name: "Lainnya", Provider: "Manual", IsActive: true},
+	}
+
+	for _, src := range sources {
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&src).Error; err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
