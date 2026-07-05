@@ -17,6 +17,7 @@ type Transaction struct {
 	Status                string    `json:"status" gorm:"type:enum('pending','success','failed');not null;default:'pending'"`
 	PreviousHash          string    `json:"previous_hash" gorm:"type:char(64);not null"`
 	CurrentHash           string    `json:"current_hash" gorm:"type:char(64);not null"`
+	CreatedAt             time.Time `json:"created_at" gorm:"autoCreateTime"`
 
 	Attachments []Attachment `gorm:"foreignKey:TransactionID;references:TransactionID;constraint:onDelete:CASCADE"`
 }
