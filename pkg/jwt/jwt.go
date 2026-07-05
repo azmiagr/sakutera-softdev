@@ -17,6 +17,7 @@ type Interface interface {
 	CreateJWTToken(userID uuid.UUID, roleName string) (string, error)
 	ValidateToken(tokenString string) (uuid.UUID, error)
 	GetLoginUser(c *gin.Context) (*entity.User, error)
+	GetTokenExpiry(tokenString string) (time.Time, error)
 }
 
 type jsonWebToken struct {
@@ -82,6 +83,23 @@ func (j *jsonWebToken) ValidateToken(tokenString string) (uuid.UUID, error) {
 
 	userID = claim.UserID
 	return userID, nil
+}
+
+func (j *jsonWebToken) GetTokenExpiry(tokenString string) (time.Time, error) {
+	var claim Claims
+
+	_, err := jwt.ParseWithClaims(tokenString, &claim, func(t *jwt.Token) (interface{}, error) {
+		return []byte(j.SecretKey), nil
+	})
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if claim.ExpiresAt == nil {
+		return time.Time{}, errors.New("token tidak memiliki waktu kedaluwarsa")
+	}
+
+	return claim.ExpiresAt.Time, nil
 }
 
 func (j *jsonWebToken) GetLoginUser(c *gin.Context) (*entity.User, error) {

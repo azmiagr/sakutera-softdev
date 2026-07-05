@@ -217,6 +217,46 @@ Response `401 Unauthorized` (PIN salah):
 
 ---
 
+### Logout
+
+**POST** `/auth/logout`
+
+Header:
+```
+Authorization: Bearer <token>
+```
+
+Response `200 OK`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "Logout berhasil",
+  "data": { "message": "Logout berhasil" }
+}
+```
+
+> Token yang sudah dipakai untuk logout langsung diblacklist di server. Request berikutnya ke endpoint mana pun yang butuh `Authorization: Bearer <token>` dengan token yang sama akan ditolak (401), meski token tsb belum kedaluwarsa. Frontend wajib menghapus token dari storage lokal setelah logout berhasil.
+
+Response `401 Unauthorized` (token tidak ada / tidak valid):
+```json
+{
+  "status": { "code": 401, "isSuccess": false },
+  "message": "token diperlukan",
+  "data": null
+}
+```
+
+Response `401 Unauthorized` (token sudah pernah di-logout sebelumnya):
+```json
+{
+  "status": { "code": 401, "isSuccess": false },
+  "message": "token sudah tidak berlaku, silakan login kembali",
+  "data": null
+}
+```
+
+---
+
 ### Step 2 — Verify OTP
 
 **POST** `/auth/verify-otp`
@@ -937,7 +977,7 @@ Response `200 OK`:
 | HTTP Code | Situasi |
 |-----------|---------|
 | 400 | Request body tidak valid / field wajib kosong / nilai tidak sesuai |
-| 401 | Token tidak ada, expired, atau tidak valid |
+| 401 | Token tidak ada, expired, tidak valid, atau sudah di-logout (blacklisted) |
 | 404 | Resource tidak ditemukan (misal: work_platform_id tidak ada) |
 | 409 | Konflik data (misal: nomor HP sudah terdaftar aktif) |
 | 500 | Internal server error |
@@ -979,6 +1019,15 @@ curl -X POST http://localhost:8080/api/v1/onboarding/income-source \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer JWT_TOKEN" \
   -d '{"income_source_type": "manual"}'
+```
+
+---
+
+### Logout:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/logout \
+  -H "Authorization: Bearer JWT_TOKEN"
 ```
 
 ---

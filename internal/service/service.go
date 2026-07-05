@@ -20,7 +20,7 @@ type Service struct {
 
 func NewService(repository *repository.Repository, bcrypt bcrypt.Interface, jwtAuth jwt.Interface, ml mlclient.Interface, wa whatsapp.Interface) *Service {
 	return &Service{
-		AuthService:        NewAuthService(repository.UserRepo, repository.SessionRepo, repository.OTPRepo, jwtAuth, bcrypt, wa),
+		AuthService:        NewAuthService(repository.UserRepo, repository.SessionRepo, repository.OTPRepo, repository.TokenBlacklistRepo, jwtAuth, bcrypt, wa),
 		OnboardingService:  NewOnboardingService(repository.UserRepo, repository.WorkCategoryRepo, repository.WorkPlatformRepo),
 		TransactionService: NewTransactionService(repository.TransactionRepo, repository.TransactionSourceRepo, repository.ForecastResultRepo, ml),
 		DashboardService:   NewDashboardService(repository.UserRepo, repository.TransactionRepo, repository.TransactionSourceRepo, repository.ForecastResultRepo),

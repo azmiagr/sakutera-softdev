@@ -25,6 +25,18 @@ func (m *middleware) AuthenticateUser() gin.HandlerFunc {
 			return
 		}
 
+		isRevoked, err := m.service.AuthService.IsTokenRevoked(token)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, "gagal memverifikasi token", err)
+			c.Abort()
+			return
+		}
+		if isRevoked {
+			response.Error(c, http.StatusUnauthorized, "token sudah tidak berlaku, silakan login kembali", nil)
+			c.Abort()
+			return
+		}
+
 		user, err := m.service.AuthService.GetUserByID(userID)
 		if err != nil {
 			response.Error(c, http.StatusUnauthorized, "user tidak ditemukan", err)

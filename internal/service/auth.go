@@ -11,9 +11,9 @@ import (
 	"github.com/azmiagr/sakutera-softdev/entity"
 	"github.com/azmiagr/sakutera-softdev/internal/repository"
 	"github.com/azmiagr/sakutera-softdev/model"
+	"github.com/azmiagr/sakutera-softdev/pkg/bcrypt"
 	"github.com/azmiagr/sakutera-softdev/pkg/database/mariadb"
 	apperrors "github.com/azmiagr/sakutera-softdev/pkg/errors"
-	"github.com/azmiagr/sakutera-softdev/pkg/bcrypt"
 	"github.com/azmiagr/sakutera-softdev/pkg/jwt"
 	"github.com/azmiagr/sakutera-softdev/pkg/whatsapp"
 	"github.com/google/uuid"
@@ -28,27 +28,31 @@ type IAuthService interface {
 	CheckPhoneNumber(phone string) (*model.CheckPhoneResponse, error)
 	SetPIN(sessionToken string, pin string) (*model.SetPINResponse, error)
 	LoginWithPIN(phone string, pin string) (*model.LoginResponse, error)
+	Logout(token string) (*model.LogoutResponse, error)
+	IsTokenRevoked(token string) (bool, error)
 }
 
 type AuthService struct {
-	db          *gorm.DB
-	userRepo    repository.IUserRepository
-	sessionRepo repository.ISessionRepository
-	otpRepo     repository.IOTPRepository
-	jwtAuth     jwt.Interface
-	bcrypt      bcrypt.Interface
-	whatsapp    whatsapp.Interface
+	db                 *gorm.DB
+	userRepo           repository.IUserRepository
+	sessionRepo        repository.ISessionRepository
+	otpRepo            repository.IOTPRepository
+	tokenBlacklistRepo repository.ITokenBlacklistRepository
+	jwtAuth            jwt.Interface
+	bcrypt             bcrypt.Interface
+	whatsapp           whatsapp.Interface
 }
 
-func NewAuthService(userRepo repository.IUserRepository, sessionRepo repository.ISessionRepository, otpRepo repository.IOTPRepository, jwtAuth jwt.Interface, bcrypt bcrypt.Interface, wa whatsapp.Interface) IAuthService {
+func NewAuthService(userRepo repository.IUserRepository, sessionRepo repository.ISessionRepository, otpRepo repository.IOTPRepository, tokenBlacklistRepo repository.ITokenBlacklistRepository, jwtAuth jwt.Interface, bcrypt bcrypt.Interface, wa whatsapp.Interface) IAuthService {
 	return &AuthService{
-		db:          mariadb.Connection,
-		userRepo:    userRepo,
-		sessionRepo: sessionRepo,
-		otpRepo:     otpRepo,
-		jwtAuth:     jwtAuth,
-		bcrypt:      bcrypt,
-		whatsapp:    wa,
+		db:                 mariadb.Connection,
+		userRepo:           userRepo,
+		sessionRepo:        sessionRepo,
+		otpRepo:            otpRepo,
+		tokenBlacklistRepo: tokenBlacklistRepo,
+		jwtAuth:            jwtAuth,
+		bcrypt:             bcrypt,
+		whatsapp:           wa,
 	}
 }
 
@@ -151,13 +155,21 @@ func (s *AuthService) VerifyOTP(sessionToken string, req model.VerifyOTPRequest)
 	if err != nil {
 		return nil, apperrors.InternalServer("gagal mengambil data pengguna")
 	}
+
 	user.Status = "active"
-	if err := s.userRepo.UpdateUser(s.db, user); err != nil {
+	err = s.userRepo.UpdateUser(s.db, user)
+	if err != nil {
 		return nil, apperrors.InternalServer("gagal mengaktifkan akun")
 	}
 
-	_ = s.otpRepo.DeleteOTPByUserID(s.db, user.UserID.String())
-	_ = s.sessionRepo.DeleteSessionByUserID(s.db, user.UserID.String())
+	err = s.otpRepo.DeleteOTPByUserID(s.db, user.UserID.String())
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal menghapus OTP")
+	}
+	err = s.sessionRepo.DeleteSessionByUserID(s.db, user.UserID.String())
+	if err != nil {
+		return nil, apperrors.InternalServer("gagal menghapus session")
+	}
 
 	token, err := s.jwtAuth.CreateJWTToken(user.UserID, "user")
 	if err != nil {
@@ -186,15 +198,18 @@ func (s *AuthService) CheckPhoneNumber(phone string) (*model.CheckPhoneResponse,
 	if err != nil {
 		return nil, apperrors.InternalServer("gagal membuat session token")
 	}
+
 	sessionEntity := &entity.Session{
 		SessionID: uuid.New(),
 		UserID:    user.UserID,
 		Token:     sessionToken,
 		ExpiredAt: time.Now().Add(10 * time.Minute),
 	}
-	if err := s.sessionRepo.CreateSession(s.db, sessionEntity); err != nil {
+	err = s.sessionRepo.CreateSession(s.db, sessionEntity)
+	if err != nil {
 		return nil, apperrors.InternalServer("gagal menyimpan session")
 	}
+
 	return &model.CheckPhoneResponse{HasPIN: false, SessionToken: sessionToken}, nil
 }
 
@@ -227,6 +242,7 @@ func (s *AuthService) SetPIN(sessionToken string, pin string) (*model.SetPINResp
 	if err != nil {
 		return nil, apperrors.InternalServer("gagal membuat token autentikasi")
 	}
+
 	return &model.SetPINResponse{Token: token, Message: "PIN berhasil dibuat"}, nil
 }
 
@@ -241,7 +257,9 @@ func (s *AuthService) LoginWithPIN(phone string, pin string) (*model.LoginRespon
 	if user.PINNumber == "" {
 		return nil, apperrors.BadRequest("PIN belum dibuat, silakan buat PIN terlebih dahulu")
 	}
-	if err := s.bcrypt.CompareAndHashPassword(user.PINNumber, pin); err != nil {
+
+	err = s.bcrypt.CompareAndHashPassword(user.PINNumber, pin)
+	if err != nil {
 		return nil, apperrors.Unauthorized("PIN tidak valid")
 	}
 
@@ -250,6 +268,28 @@ func (s *AuthService) LoginWithPIN(phone string, pin string) (*model.LoginRespon
 		return nil, apperrors.InternalServer("gagal membuat token autentikasi")
 	}
 	return &model.LoginResponse{Token: token, Message: "Login berhasil"}, nil
+}
+
+func (s *AuthService) Logout(token string) (*model.LogoutResponse, error) {
+	expiredAt, err := s.jwtAuth.GetTokenExpiry(token)
+	if err != nil {
+		return nil, apperrors.Unauthorized("token tidak valid")
+	}
+
+	blacklist := &entity.TokenBlacklist{
+		BlacklistID: uuid.New(),
+		Token:       token,
+		ExpiredAt:   expiredAt,
+	}
+	if err := s.tokenBlacklistRepo.CreateBlacklistToken(s.db, blacklist); err != nil {
+		return nil, apperrors.InternalServer("gagal logout")
+	}
+
+	return &model.LogoutResponse{Message: "Logout berhasil"}, nil
+}
+
+func (s *AuthService) IsTokenRevoked(token string) (bool, error) {
+	return s.tokenBlacklistRepo.IsTokenBlacklisted(s.db, token)
 }
 
 func isValidPIN(pin string) bool {

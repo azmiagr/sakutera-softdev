@@ -128,7 +128,8 @@ func (s *AccessService) GrantAccess(userID uuid.UUID, req model.GrantAccessReque
 		consent.ExpiresAt = &exp
 	}
 
-	if err := s.consentRepo.Create(s.db, consent); err != nil {
+	err = s.consentRepo.Create(s.db, consent)
+	if err != nil {
 		return apperr.InternalServer("gagal memberikan akses")
 	}
 
@@ -176,7 +177,8 @@ func (s *AccessService) RevokeAccess(userID uuid.UUID, consentID string) error {
 		return apperr.BadRequest("akses sudah tidak aktif")
 	}
 
-	if err := s.consentRepo.UpdateStatus(s.db, cID, "revoked"); err != nil {
+	err = s.consentRepo.UpdateStatus(s.db, cID, "revoked")
+	if err != nil {
 		return apperr.InternalServer("gagal mencabut akses")
 	}
 
@@ -265,8 +267,6 @@ func (s *AccessService) GetOrganizations() ([]model.OrganizationItem, error) {
 	return items, nil
 }
 
-// scopeToLabels converts stored scope string to display labels.
-// e.g. "emi,stability,risk" → ["EMI", "Tren Stabilitas", "Risiko"]
 func scopeToLabels(scope string) []string {
 	if scope == "full" || scope == "" {
 		return []string{"Akses penuh"}
@@ -288,7 +288,6 @@ func scopeToLabels(scope string) []string {
 	return labels
 }
 
-// scopeToText converts scope slice to readable text for notes.
 func scopeToText(scope []string) string {
 	labels := make([]string, 0, len(scope))
 	for _, s := range scope {
@@ -308,7 +307,6 @@ func scopeToText(scope []string) string {
 	return strings.Join(labels, " + ")
 }
 
-// consentStatusLabel maps status + expiry to UI label.
 func consentStatusLabel(status string, expiresAt *time.Time) string {
 	switch status {
 	case "revoked":

@@ -46,6 +46,7 @@ func (r *Rest) MountEndpoint() {
 	protected.Use(r.middleware.AuthenticateUser())
 	protected.GET("/dashboard", r.GetDashboard)
 	protected.GET("/ledger", r.GetLedger)
+	protected.POST("/auth/logout", r.Logout)
 
 	passport := protected.Group("/passport")
 	passport.GET("", r.GetPassport)

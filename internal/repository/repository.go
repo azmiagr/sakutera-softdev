@@ -6,6 +6,7 @@ type Repository struct {
 	UserRepo              IUserRepository
 	SessionRepo           ISessionRepository
 	OTPRepo               IOTPRepository
+	TokenBlacklistRepo    ITokenBlacklistRepository
 	WorkCategoryRepo      IWorkCategoryRepository
 	WorkPlatformRepo      IWorkPlatformRepository
 	TransactionRepo       ITransactionRepository
@@ -22,6 +23,7 @@ func NewRepository(db *gorm.DB) *Repository {
 		UserRepo:              NewUserRepository(db),
 		SessionRepo:           NewSessionRepository(db),
 		OTPRepo:               NewOTPRepository(db),
+		TokenBlacklistRepo:    NewTokenBlacklistRepository(db),
 		WorkCategoryRepo:      NewWorkCategoryRepository(db),
 		WorkPlatformRepo:      NewWorkPlatformRepository(db),
 		TransactionRepo:       NewTransactionRepository(db),

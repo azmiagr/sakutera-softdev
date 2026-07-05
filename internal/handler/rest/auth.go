@@ -2,6 +2,7 @@ package rest
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/azmiagr/sakutera-softdev/model"
 	"github.com/azmiagr/sakutera-softdev/pkg/response"
@@ -98,6 +99,19 @@ func (r *Rest) LoginWithPIN(c *gin.Context) {
 	}
 
 	resp, err := r.service.AuthService.LoginWithPIN(req.PhoneNumber, req.PIN)
+	if err != nil {
+		response.HandleError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp.Message, resp)
+}
+
+func (r *Rest) Logout(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+
+	resp, err := r.service.AuthService.Logout(token)
 	if err != nil {
 		response.HandleError(c, err)
 		return

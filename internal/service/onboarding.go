@@ -3,8 +3,8 @@ package service
 import (
 	"github.com/azmiagr/sakutera-softdev/internal/repository"
 	"github.com/azmiagr/sakutera-softdev/model"
-	apperrors "github.com/azmiagr/sakutera-softdev/pkg/errors"
 	"github.com/azmiagr/sakutera-softdev/pkg/database/mariadb"
+	apperrors "github.com/azmiagr/sakutera-softdev/pkg/errors"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -78,7 +78,8 @@ func (s *OnboardingService) SelectWorkPlatform(userID uuid.UUID, req model.Selec
 	}
 
 	user.WorkPlatformID = &platformID
-	if err := s.userRepo.UpdateUser(s.db, user); err != nil {
+	err = s.userRepo.UpdateUser(s.db, user)
+	if err != nil {
 		return nil, apperrors.InternalServer("gagal menyimpan pekerjaan")
 	}
 
