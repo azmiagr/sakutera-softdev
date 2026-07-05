@@ -22,6 +22,7 @@ func Migrate(db *gorm.DB) error {
 		&entity.Session{},
 		&entity.OTP{},
 		&entity.Notification{},
+		&entity.TokenBlacklist{},
 	)
 
 	if err != nil {
