@@ -12,7 +12,8 @@ import (
 )
 
 func (r *Rest) GetTransactionSources(c *gin.Context) {
-	resp, err := r.service.TransactionService.GetSources()
+	provider := c.Query("provider")
+	resp, err := r.service.TransactionService.GetSources(provider)
 	if err != nil {
 		response.HandleError(c, err)
 		return

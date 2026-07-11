@@ -17,7 +17,7 @@ import (
 )
 
 type ITransactionService interface {
-	GetSources() (*model.GetTransactionSourcesResponse, error)
+	GetSources(provider string) (*model.GetTransactionSourcesResponse, error)
 	CreateTransaction(userID uuid.UUID, req model.CreateTransactionRequest) (*model.CreateTransactionResponse, error)
 	GetTransactions(userID uuid.UUID, limit int) (*model.GetTransactionsResponse, error)
 	GetLedger(userID uuid.UUID, period string, sourceID *uuid.UUID) (*model.GetLedgerResponse, error)
@@ -46,8 +46,8 @@ func NewTransactionService(
 	}
 }
 
-func (s *TransactionService) GetSources() (*model.GetTransactionSourcesResponse, error) {
-	sources, err := s.sourceRepo.GetAll(s.db)
+func (s *TransactionService) GetSources(provider string) (*model.GetTransactionSourcesResponse, error) {
+	sources, err := s.sourceRepo.GetAll(s.db, provider)
 	if err != nil {
 		return nil, apperr.InternalServer("gagal mengambil sumber penghasilan")
 	}

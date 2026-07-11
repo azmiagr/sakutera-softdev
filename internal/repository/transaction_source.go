@@ -7,7 +7,7 @@ import (
 )
 
 type ITransactionSourceRepository interface {
-	GetAll(tx *gorm.DB) ([]entity.TransactionSource, error)
+	GetAll(tx *gorm.DB, provider string) ([]entity.TransactionSource, error)
 	GetByID(tx *gorm.DB, id uuid.UUID) (*entity.TransactionSource, error)
 }
 
@@ -19,9 +19,13 @@ func NewTransactionSourceRepository(db *gorm.DB) ITransactionSourceRepository {
 	return &TransactionSourceRepository{db: db}
 }
 
-func (r *TransactionSourceRepository) GetAll(tx *gorm.DB) ([]entity.TransactionSource, error) {
+func (r *TransactionSourceRepository) GetAll(tx *gorm.DB, provider string) ([]entity.TransactionSource, error) {
 	var sources []entity.TransactionSource
-	err := tx.Where("is_active = ?", true).Find(&sources).Error
+	query := tx.Where("is_active = ?", true)
+	if provider != "" {
+		query = query.Where("provider = ?", provider)
+	}
+	err := query.Find(&sources).Error
 	if err != nil {
 		return nil, err
 	}

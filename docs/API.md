@@ -829,6 +829,14 @@ Header:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
+Query Params:
+
+| Param | Wajib | Keterangan |
+|-------|-------|-----------|
+| `provider` | ❌ | Filter berdasarkan jenis sumber penghasilan / payment provider, contoh: `GoPay`, `OVO`, `ShopeePay`, `Manual`. Jika kosong, semua sumber aktif dikembalikan. |
+
+Contoh: `GET /transactions/sources?provider=GoPay`
+
 Response `200 OK`:
 ```json
 {
@@ -842,6 +850,20 @@ Response `200 OK`:
       { "transaction_source_id": "uuid-4", "name": "GoSend",     "provider": "GoPay"     },
       { "transaction_source_id": "uuid-5", "name": "Tokopedia",  "provider": "Manual"    },
       { "transaction_source_id": "uuid-6", "name": "Lainnya",    "provider": "Manual"    }
+    ]
+  }
+}
+```
+
+Response saat `?provider=GoPay`:
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "sumber penghasilan berhasil diambil",
+  "data": {
+    "sources": [
+      { "transaction_source_id": "uuid-1", "name": "Gojek",  "provider": "GoPay" },
+      { "transaction_source_id": "uuid-4", "name": "GoSend", "provider": "GoPay" }
     ]
   }
 }
