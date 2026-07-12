@@ -17,6 +17,13 @@ type Repository struct {
 	AccessLogRepo         IAccessLogRepository
 	OrganizationRepo      IOrganizationRepository
 	AttachmentRepo        IAttachmentRepository
+	DeviceRepo            IDeviceRepository
+	NotificationEventRepo INotificationEventRepository
+	PairingCodeRepo       IPairingCodeRepository
+	TransactionReviewRepo ITransactionReviewRepository
+	CollectorConfigRepo   ICollectorConfigRepository
+	AuditLogRepo          IAuditLogRepository
+	RateLimitRepo         IRateLimitRepository
 }
 
 func NewRepository(db *gorm.DB) *Repository {
@@ -35,5 +42,12 @@ func NewRepository(db *gorm.DB) *Repository {
 		AccessLogRepo:         NewAccessLogRepository(db),
 		OrganizationRepo:      NewOrganizationRepository(db),
 		AttachmentRepo:        NewAttachmentRepository(db),
+		DeviceRepo:            NewDeviceRepository(db),
+		NotificationEventRepo: NewNotificationEventRepository(db),
+		PairingCodeRepo:       NewPairingCodeRepository(db),
+		TransactionReviewRepo: NewTransactionReviewRepository(db),
+		CollectorConfigRepo:   NewCollectorConfigRepository(db),
+		AuditLogRepo:          NewAuditLogRepository(db),
+		RateLimitRepo:         NewRateLimitRepository(db),
 	}
 }

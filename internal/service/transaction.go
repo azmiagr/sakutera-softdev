@@ -1,8 +1,6 @@
 package service
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"mime/multipart"
 	"strings"
 	"time"
@@ -81,40 +79,14 @@ func (s *TransactionService) CreateTransaction(userID uuid.UUID, req model.Creat
 		return nil, apperr.BadRequest("transaction_source_id tidak valid")
 	}
 
-	source, err := s.sourceRepo.GetByID(s.db, sourceID)
-	if err != nil {
-		return nil, apperr.NotFound("sumber penghasilan tidak ditemukan")
-	}
-
 	txDate, err := time.Parse("2006-01-02", req.TransactionDate)
 	if err != nil {
 		return nil, apperr.BadRequest("format transaction_date tidak valid, gunakan YYYY-MM-DD")
 	}
 
-	prevHash := strings.Repeat("0", 64)
-	lastTx, err := s.transactionRepo.GetLastByUserID(s.db, userID)
-	if err == nil && lastTx != nil {
-		prevHash = lastTx.CurrentHash
-	}
-
-	input := fmt.Sprintf("%s|%s|%.2f|%s|%s",
-		userID.String(), sourceID.String(), req.Amount, req.TransactionDate, prevHash)
-	currentHash := fmt.Sprintf("%x", sha256.Sum256([]byte(input)))
-
-	t := &entity.Transaction{
-		TransactionID:       uuid.New(),
-		UserID:              userID,
-		TransactionSourceID: sourceID,
-		Amount:              req.Amount,
-		TransactionDate:     txDate,
-		Category:            req.Description,
-		Status:              "success",
-		PreviousHash:        prevHash,
-		CurrentHash:         currentHash,
-	}
-
-	if err := s.transactionRepo.CreateTransaction(s.db, t); err != nil {
-		return nil, apperr.InternalServer("gagal menyimpan transaksi")
+	t, source, err := createLedgerEntry(s.db, s.transactionRepo, s.sourceRepo, userID, sourceID, req.Amount, txDate, req.Description, nil)
+	if err != nil {
+		return nil, apperr.NotFound(err.Error())
 	}
 
 	if req.AttachmentURL != "" {
@@ -326,22 +298,22 @@ func (s *TransactionService) updateForecast(userID uuid.UUID, sourceName string)
 	}
 
 	forecastResult := &entity.ForecastResult{
-		ForecastResultID:  uuid.New(),
-		UserID:            userID,
-		EMIValue:          mlResp.EMI.Value,
-		Confidence:        mlResp.EMI.Confidence,
-		TrendDirection:    mlResp.Trend.Direction,
-		TrendChangePct:    mlResp.Trend.ChangePct,
-		MonthToDateIncome: mlResp.MonthToDate.TotalEarned,
-		ForecastTotal:     mlResp.ForecastRemainingMonth.ProjectedMonthTotal,
-		RiskLevel:         mlResp.DeficitRisk.Level,
-		RiskScore:         mlResp.DeficitRisk.Score,
+		ForecastResultID:   uuid.New(),
+		UserID:             userID,
+		EMIValue:           mlResp.EMI.Value,
+		Confidence:         mlResp.EMI.Confidence,
+		TrendDirection:     mlResp.Trend.Direction,
+		TrendChangePct:     mlResp.Trend.ChangePct,
+		MonthToDateIncome:  mlResp.MonthToDate.TotalEarned,
+		ForecastTotal:      mlResp.ForecastRemainingMonth.ProjectedMonthTotal,
+		RiskLevel:          mlResp.DeficitRisk.Level,
+		RiskScore:          mlResp.DeficitRisk.Score,
 		EstimatedShortfall: mlResp.DeficitRisk.EstimatedShortfall,
-		ShouldNotify:      mlResp.DeficitRisk.ShouldNotify,
-		IsDataSufficient:  mlResp.DataSufficiency.IsSufficient,
-		DaysOfData:        mlResp.DataSufficiency.DaysOfData,
-		TransactionCount:  len(transactions),
-		ModelName:         "prophet",
+		ShouldNotify:       mlResp.DeficitRisk.ShouldNotify,
+		IsDataSufficient:   mlResp.DataSufficiency.IsSufficient,
+		DaysOfData:         mlResp.DataSufficiency.DaysOfData,
+		TransactionCount:   len(transactions),
+		ModelName:          "prophet",
 	}
 
 	_ = s.forecastRepo.UpsertByUserID(s.db, forecastResult)

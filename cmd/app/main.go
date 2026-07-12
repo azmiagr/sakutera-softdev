@@ -1,6 +1,11 @@
 package main
 
 import (
+	"log"
+	"os"
+	"strconv"
+	"time"
+
 	"github.com/azmiagr/sakutera-softdev/internal/handler/rest"
 	"github.com/azmiagr/sakutera-softdev/internal/repository"
 	"github.com/azmiagr/sakutera-softdev/internal/service"
@@ -12,7 +17,6 @@ import (
 	"github.com/azmiagr/sakutera-softdev/pkg/mlclient"
 	"github.com/azmiagr/sakutera-softdev/pkg/supabase"
 	"github.com/azmiagr/sakutera-softdev/pkg/whatsapp"
-	"log"
 )
 
 func main() {
@@ -45,5 +49,20 @@ func main() {
 	r := rest.NewRest(svc, middleware)
 	r.MountEndpoint()
 
+	go runRetentionJob(svc)
+
 	r.Run()
+}
+
+func runRetentionJob(svc *service.Service) {
+	days, _ := strconv.Atoi(os.Getenv("NOTIFICATION_RETENTION_DAYS"))
+	if days <= 0 {
+		days = 30
+	}
+
+	ticker := time.NewTicker(24 * time.Hour)
+	for {
+		_, _ = svc.CollectorService.RedactOldNotifications(time.Duration(days) * 24 * time.Hour)
+		<-ticker.C
+	}
 }

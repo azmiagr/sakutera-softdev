@@ -64,6 +64,23 @@ func (r *Rest) MountEndpoint() {
 	tx.POST("", r.CreateTransaction)
 	tx.GET("", r.GetTransactions)
 	tx.POST("/attachments", r.UploadTransactionAttachment)
+
+	review := protected.Group("/transactions/review")
+	review.GET("", r.GetReviews)
+	review.POST("/:review_id/confirm", r.ConfirmReview)
+	review.POST("/:review_id/reject", r.RejectReview)
+
+	protected.POST("/collector/pairing-codes", r.CreatePairingCode)
+	protected.GET("/collector/devices", r.ListDevices)
+	protected.DELETE("/collector/devices/:device_id", r.RevokeDevice)
+
+	baseURL.POST("/collector/devices/pair", r.PairDevice)
+
+	collector := baseURL.Group("/collector")
+	collector.Use(r.middleware.AuthenticateDevice())
+	collector.GET("/health", r.CollectorHealth)
+	collector.GET("/config", r.GetConfig)
+	collector.POST("/notifications/batch", r.UploadNotificationBatch)
 }
 
 func (r *Rest) Run() {

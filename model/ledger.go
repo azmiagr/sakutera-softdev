@@ -17,7 +17,7 @@ type LedgerTransactionItem struct {
 }
 
 type GetLedgerResponse struct {
-	Summary      LedgerSummary          `json:"summary"`
+	Summary      LedgerSummary           `json:"summary"`
 	Transactions []LedgerTransactionItem `json:"transactions"`
-	Total        int                    `json:"total"`
+	Total        int                     `json:"total"`
 }

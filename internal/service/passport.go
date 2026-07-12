@@ -24,10 +24,10 @@ type IPassportService interface {
 }
 
 type PassportService struct {
-	db             *gorm.DB
-	passportRepo   repository.IIncomePassportRepository
+	db              *gorm.DB
+	passportRepo    repository.IIncomePassportRepository
 	transactionRepo repository.ITransactionRepository
-	forecastRepo   repository.IForecastResultRepository
+	forecastRepo    repository.IForecastResultRepository
 }
 
 func NewPassportService(

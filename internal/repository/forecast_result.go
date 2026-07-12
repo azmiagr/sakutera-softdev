@@ -22,7 +22,7 @@ func NewForecastResultRepository(db *gorm.DB) IForecastResultRepository {
 
 func (r *ForecastResultRepository) UpsertByUserID(tx *gorm.DB, result *entity.ForecastResult) error {
 	return tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "user_id"}},
+		Columns: []clause.Column{{Name: "user_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"emi_value", "confidence", "trend_direction", "trend_change_pct",
 			"month_to_date_income", "forecast_total", "risk_level", "risk_score",

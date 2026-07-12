@@ -9,6 +9,7 @@ import (
 type ITransactionSourceRepository interface {
 	GetAll(tx *gorm.DB, provider string) ([]entity.TransactionSource, error)
 	GetByID(tx *gorm.DB, id uuid.UUID) (*entity.TransactionSource, error)
+	GetByName(tx *gorm.DB, name string) (*entity.TransactionSource, error)
 }
 
 type TransactionSourceRepository struct {
@@ -35,6 +36,15 @@ func (r *TransactionSourceRepository) GetAll(tx *gorm.DB, provider string) ([]en
 func (r *TransactionSourceRepository) GetByID(tx *gorm.DB, id uuid.UUID) (*entity.TransactionSource, error) {
 	var source entity.TransactionSource
 	err := tx.Where("transaction_source_id = ?", id).First(&source).Error
+	if err != nil {
+		return nil, err
+	}
+	return &source, nil
+}
+
+func (r *TransactionSourceRepository) GetByName(tx *gorm.DB, name string) (*entity.TransactionSource, error) {
+	var source entity.TransactionSource
+	err := tx.Where("name = ?", name).First(&source).Error
 	if err != nil {
 		return nil, err
 	}

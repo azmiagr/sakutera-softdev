@@ -23,6 +23,14 @@ func Migrate(db *gorm.DB) error {
 		&entity.OTP{},
 		&entity.Notification{},
 		&entity.TokenBlacklist{},
+		&entity.Device{},
+		&entity.NotificationEvent{},
+		&entity.PairingCode{},
+		&entity.TransactionReview{},
+		&entity.CollectorConfig{},
+		&entity.AllowedPackage{},
+		&entity.AuditLog{},
+		&entity.RateLimitEvent{},
 	)
 
 	if err != nil {

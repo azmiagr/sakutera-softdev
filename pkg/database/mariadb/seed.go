@@ -49,7 +49,31 @@ func Seed(db *gorm.DB) error {
 		return err
 	}
 
+	if err := seedCollectorConfig(db); err != nil {
+		return err
+	}
+
 	return seedOrganizations(db)
+}
+
+func seedCollectorConfig(db *gorm.DB) error {
+	config := entity.CollectorConfig{ID: 1, Mode: "whitelist_only", ConfigVersion: 1}
+	if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&config).Error; err != nil {
+		return err
+	}
+
+	packages := []entity.AllowedPackage{
+		{PackageName: "com.gojek.app", Provider: "GoPay", Enabled: true},
+		{PackageName: "com.grabtaxi.passenger", Provider: "OVO", Enabled: true},
+	}
+
+	for _, pkg := range packages {
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&pkg).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func seedTransactionSources(db *gorm.DB) error {

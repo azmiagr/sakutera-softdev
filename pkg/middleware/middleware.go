@@ -9,6 +9,7 @@ import (
 type Interface interface {
 	Cors() gin.HandlerFunc
 	AuthenticateUser() gin.HandlerFunc
+	AuthenticateDevice() gin.HandlerFunc
 }
 
 type middleware struct {
