@@ -9,6 +9,7 @@ import (
 type IConsentRepository interface {
 	Create(tx *gorm.DB, c *entity.Consent) error
 	GetByPassportID(tx *gorm.DB, passportID uuid.UUID) ([]entity.Consent, error)
+	GetByPassportIDs(tx *gorm.DB, passportIDs []uuid.UUID) ([]entity.Consent, error)
 	GetByConsentID(tx *gorm.DB, consentID uuid.UUID) (*entity.Consent, error)
 	GetByPassportAndOrg(tx *gorm.DB, passportID, orgID uuid.UUID) (*entity.Consent, error)
 	UpdateStatus(tx *gorm.DB, consentID uuid.UUID, status string) error
@@ -29,6 +30,14 @@ func (r *ConsentRepository) Create(tx *gorm.DB, c *entity.Consent) error {
 func (r *ConsentRepository) GetByPassportID(tx *gorm.DB, passportID uuid.UUID) ([]entity.Consent, error) {
 	var consents []entity.Consent
 	err := tx.Where("passport_id = ?", passportID).
+		Order("granted_at DESC").
+		Find(&consents).Error
+	return consents, err
+}
+
+func (r *ConsentRepository) GetByPassportIDs(tx *gorm.DB, passportIDs []uuid.UUID) ([]entity.Consent, error) {
+	var consents []entity.Consent
+	err := tx.Where("passport_id IN ?", passportIDs).
 		Order("granted_at DESC").
 		Find(&consents).Error
 	return consents, err

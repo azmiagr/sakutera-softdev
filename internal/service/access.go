@@ -46,12 +46,14 @@ func NewAccessService(
 }
 
 func (s *AccessService) GetConsents(userID uuid.UUID) (*model.GetConsentsResponse, error) {
-	passport, err := s.passportRepo.GetLatestByUserID(s.db, userID)
-	if err != nil {
+	passports, err := s.passportRepo.GetAllByUserID(s.db, userID)
+	if err != nil || len(passports) == 0 {
 		return &model.GetConsentsResponse{Consents: []model.ConsentItem{}}, nil
 	}
 
-	consents, err := s.consentRepo.GetByPassportID(s.db, passport.IncomePassportID)
+	passportMap, passportIDs := indexPassports(passports)
+
+	consents, err := s.consentRepo.GetByPassportIDs(s.db, passportIDs)
 	if err != nil {
 		return nil, apperr.InternalServer("gagal mengambil data akses")
 	}
@@ -63,6 +65,8 @@ func (s *AccessService) GetConsents(userID uuid.UUID) (*model.GetConsentsRespons
 			continue
 		}
 
+		passport := passportMap[c.PassportID]
+
 		item := model.ConsentItem{
 			ConsentID:        c.ConsentID.String(),
 			OrganizationName: org.Name,
@@ -72,15 +76,16 @@ func (s *AccessService) GetConsents(userID uuid.UUID) (*model.GetConsentsRespons
 			Status:           c.Status,
 			StatusLabel:      consentStatusLabel(c.Status, c.ExpiresAt),
 			Purpose:          c.Purpose,
+			IncomePassportID: passport.IncomePassportID.String(),
+			PassportNumber:   passport.PassportNumber,
+			PeriodType:       passport.PeriodType,
+			PeriodLabel:      buildPeriodLabel(passport.PeriodType, passport.PeriodStart, passport.PeriodEnd, true),
 		}
 
 		if c.ExpiresAt != nil {
 			formatted := c.ExpiresAt.Format("02 Jan 2006")
 			item.ExpiresAt = &formatted
-			days := int(time.Until(*c.ExpiresAt).Hours() / 24)
-			if days < 0 {
-				days = 0
-			}
+			days := max(int(time.Until(*c.ExpiresAt).Hours()/24), 0)
 			item.DaysRemaining = &days
 		}
 
@@ -91,9 +96,14 @@ func (s *AccessService) GetConsents(userID uuid.UUID) (*model.GetConsentsRespons
 }
 
 func (s *AccessService) GrantAccess(userID uuid.UUID, req model.GrantAccessRequest) error {
-	passport, err := s.passportRepo.GetLatestByUserID(s.db, userID)
+	passportID, err := uuid.Parse(req.IncomePassportID)
 	if err != nil {
-		return apperr.BadRequest("income passport belum diterbitkan")
+		return apperr.BadRequest("income_passport_id tidak valid")
+	}
+
+	passport, err := s.passportRepo.GetByID(s.db, passportID)
+	if err != nil || passport.UserID != userID {
+		return apperr.NotFound("income passport tidak ditemukan")
 	}
 
 	orgID, err := uuid.Parse(req.OrganizationID)
@@ -154,11 +164,6 @@ func (s *AccessService) GrantAccess(userID uuid.UUID, req model.GrantAccessReque
 }
 
 func (s *AccessService) RevokeAccess(userID uuid.UUID, consentID string) error {
-	passport, err := s.passportRepo.GetLatestByUserID(s.db, userID)
-	if err != nil {
-		return apperr.BadRequest("income passport belum diterbitkan")
-	}
-
 	cID, err := uuid.Parse(consentID)
 	if err != nil {
 		return apperr.BadRequest("consent_id tidak valid")
@@ -169,7 +174,8 @@ func (s *AccessService) RevokeAccess(userID uuid.UUID, consentID string) error {
 		return apperr.NotFound("akses tidak ditemukan")
 	}
 
-	if consent.PassportID != passport.IncomePassportID {
+	passport, err := s.passportRepo.GetByID(s.db, consent.PassportID)
+	if err != nil || passport.UserID != userID {
 		return apperr.Unauthorized("tidak memiliki izin untuk mencabut akses ini")
 	}
 
@@ -185,7 +191,7 @@ func (s *AccessService) RevokeAccess(userID uuid.UUID, consentID string) error {
 	now := time.Now()
 	logEntry := &entity.AccessLog{
 		AccessLogID:    uuid.New(),
-		PassportID:     passport.IncomePassportID,
+		PassportID:     consent.PassportID,
 		OrganizationID: consent.OrganizationID,
 		AccessedAt:     now,
 		Status:         "success",
@@ -197,17 +203,19 @@ func (s *AccessService) RevokeAccess(userID uuid.UUID, consentID string) error {
 }
 
 func (s *AccessService) GetAccessLogs(userID uuid.UUID, filter string) (*model.GetAccessLogsResponse, error) {
-	passport, err := s.passportRepo.GetLatestByUserID(s.db, userID)
-	if err != nil {
+	passports, err := s.passportRepo.GetAllByUserID(s.db, userID)
+	if err != nil || len(passports) == 0 {
 		return &model.GetAccessLogsResponse{Logs: []model.AccessLogItem{}}, nil
 	}
 
-	logs, err := s.logRepo.GetByPassportID(s.db, passport.IncomePassportID)
+	passportMap, passportIDs := indexPassports(passports)
+
+	logs, err := s.logRepo.GetByPassportIDs(s.db, passportIDs)
 	if err != nil {
 		return nil, apperr.InternalServer("gagal mengambil riwayat akses")
 	}
 
-	consentCache := map[uuid.UUID]*entity.Consent{}
+	consentCache := map[string]*entity.Consent{}
 
 	items := make([]model.AccessLogItem, 0, len(logs))
 	for _, l := range logs {
@@ -216,10 +224,13 @@ func (s *AccessService) GetAccessLogs(userID uuid.UUID, filter string) (*model.G
 			continue
 		}
 
-		consent, ok := consentCache[l.OrganizationID]
+		passport := passportMap[l.PassportID]
+
+		cacheKey := l.PassportID.String() + ":" + l.OrganizationID.String()
+		consent, ok := consentCache[cacheKey]
 		if !ok {
-			c, _ := s.consentRepo.GetByPassportAndOrg(s.db, passport.IncomePassportID, l.OrganizationID)
-			consentCache[l.OrganizationID] = c
+			c, _ := s.consentRepo.GetByPassportAndOrg(s.db, l.PassportID, l.OrganizationID)
+			consentCache[cacheKey] = c
 			consent = c
 		}
 
@@ -244,6 +255,10 @@ func (s *AccessService) GetAccessLogs(userID uuid.UUID, filter string) (*model.G
 			ConsentStatus:    consentStatus,
 			StatusLabel:      statusLabel,
 			Note:             l.Note,
+			IncomePassportID: passport.IncomePassportID.String(),
+			PassportNumber:   passport.PassportNumber,
+			PeriodType:       passport.PeriodType,
+			PeriodLabel:      buildPeriodLabel(passport.PeriodType, passport.PeriodStart, passport.PeriodEnd, true),
 		})
 	}
 
@@ -286,6 +301,19 @@ func scopeToLabels(scope string) []string {
 		}
 	}
 	return labels
+}
+
+// indexPassports builds a lookup map keyed by passport ID plus the flat list
+// of IDs, used to batch-query consents/access logs across all of a user's
+// issued passports and enrich each item with its originating passport info.
+func indexPassports(passports []entity.IncomePassport) (map[uuid.UUID]entity.IncomePassport, []uuid.UUID) {
+	passportMap := make(map[uuid.UUID]entity.IncomePassport, len(passports))
+	passportIDs := make([]uuid.UUID, 0, len(passports))
+	for _, p := range passports {
+		passportMap[p.IncomePassportID] = p
+		passportIDs = append(passportIDs, p.IncomePassportID)
+	}
+	return passportMap, passportIDs
 }
 
 func scopeToText(scope []string) string {

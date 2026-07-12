@@ -1,10 +1,11 @@
 package model
 
 type GrantAccessRequest struct {
-	OrganizationID string   `json:"organization_id" binding:"required"`
-	DataScope      []string `json:"data_scope" binding:"required,min=1"`
-	ExpiresInDays  int      `json:"expires_in_days"`
-	Purpose        string   `json:"purpose"`
+	IncomePassportID string   `json:"income_passport_id" binding:"required"`
+	OrganizationID   string   `json:"organization_id" binding:"required"`
+	DataScope        []string `json:"data_scope" binding:"required,min=1"`
+	ExpiresInDays    int      `json:"expires_in_days"`
+	Purpose          string   `json:"purpose"`
 }
 
 type ConsentItem struct {
@@ -18,6 +19,10 @@ type ConsentItem struct {
 	Status           string   `json:"status"`
 	StatusLabel      string   `json:"status_label"`
 	Purpose          string   `json:"purpose"`
+	IncomePassportID string   `json:"income_passport_id"`
+	PassportNumber   string   `json:"passport_number"`
+	PeriodType       string   `json:"period_type"`
+	PeriodLabel      string   `json:"period_label"`
 }
 
 type GetConsentsResponse struct {
@@ -33,6 +38,10 @@ type AccessLogItem struct {
 	ConsentStatus    string   `json:"consent_status"`
 	StatusLabel      string   `json:"status_label"`
 	Note             string   `json:"note"`
+	IncomePassportID string   `json:"income_passport_id"`
+	PassportNumber   string   `json:"passport_number"`
+	PeriodType       string   `json:"period_type"`
+	PeriodLabel      string   `json:"period_label"`
 }
 
 type GetAccessLogsResponse struct {

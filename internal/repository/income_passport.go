@@ -9,6 +9,8 @@ import (
 type IIncomePassportRepository interface {
 	Create(tx *gorm.DB, p *entity.IncomePassport) error
 	GetLatestByUserID(tx *gorm.DB, userID uuid.UUID) (*entity.IncomePassport, error)
+	GetByID(tx *gorm.DB, passportID uuid.UUID) (*entity.IncomePassport, error)
+	GetAllByUserID(tx *gorm.DB, userID uuid.UUID) ([]entity.IncomePassport, error)
 }
 
 type IncomePassportRepository struct {
@@ -32,4 +34,21 @@ func (r *IncomePassportRepository) GetLatestByUserID(tx *gorm.DB, userID uuid.UU
 		return nil, err
 	}
 	return &p, nil
+}
+
+func (r *IncomePassportRepository) GetByID(tx *gorm.DB, passportID uuid.UUID) (*entity.IncomePassport, error) {
+	var p entity.IncomePassport
+	err := tx.Where("income_passport_id = ?", passportID).First(&p).Error
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *IncomePassportRepository) GetAllByUserID(tx *gorm.DB, userID uuid.UUID) ([]entity.IncomePassport, error) {
+	var passports []entity.IncomePassport
+	err := tx.Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Find(&passports).Error
+	return passports, err
 }

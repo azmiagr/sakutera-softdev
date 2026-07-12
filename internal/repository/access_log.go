@@ -9,6 +9,7 @@ import (
 type IAccessLogRepository interface {
 	Create(tx *gorm.DB, log *entity.AccessLog) error
 	GetByPassportID(tx *gorm.DB, passportID uuid.UUID) ([]entity.AccessLog, error)
+	GetByPassportIDs(tx *gorm.DB, passportIDs []uuid.UUID) ([]entity.AccessLog, error)
 }
 
 type AccessLogRepository struct {
@@ -26,6 +27,14 @@ func (r *AccessLogRepository) Create(tx *gorm.DB, log *entity.AccessLog) error {
 func (r *AccessLogRepository) GetByPassportID(tx *gorm.DB, passportID uuid.UUID) ([]entity.AccessLog, error) {
 	var logs []entity.AccessLog
 	err := tx.Where("passport_id = ?", passportID).
+		Order("accessed_at DESC").
+		Find(&logs).Error
+	return logs, err
+}
+
+func (r *AccessLogRepository) GetByPassportIDs(tx *gorm.DB, passportIDs []uuid.UUID) ([]entity.AccessLog, error) {
+	var logs []entity.AccessLog
+	err := tx.Where("passport_id IN ?", passportIDs).
 		Order("accessed_at DESC").
 		Find(&logs).Error
 	return logs, err

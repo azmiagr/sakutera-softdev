@@ -15,7 +15,19 @@ import (
 	"gorm.io/gorm"
 )
 
-const minDaysRequired = 30
+var periodOrder = []string{"3_bulan", "6_bulan", "12_bulan"}
+
+type periodRequirement struct {
+	label    string
+	minDays  int // reduced eligibility threshold (passport can be issued once this much data exists)
+	fullDays int // true full-period length in days, used for is_full_period and EMI normalization
+}
+
+var periodRequirements = map[string]periodRequirement{
+	"3_bulan":  {label: "3 Bulan", minDays: 30, fullDays: 90},
+	"6_bulan":  {label: "6 Bulan", minDays: 180, fullDays: 180},
+	"12_bulan": {label: "12 Bulan", minDays: 365, fullDays: 365},
+}
 
 type IPassportService interface {
 	GetPassport(userID uuid.UUID) (*model.GetPassportResponse, error)
@@ -67,30 +79,46 @@ func (s *PassportService) GetPassport(userID uuid.UUID) (*model.GetPassportRespo
 }
 
 func (s *PassportService) PreviewPassport(userID uuid.UUID, period string) (*model.PassportPreviewResponse, error) {
-	numMonths, err := periodToMonths(period)
-	if err != nil {
-		return nil, err
+	req, ok := periodRequirements[period]
+	if !ok {
+		return nil, apperr.BadRequest("period tidak valid, gunakan: 3_bulan, 6_bulan, atau 12_bulan")
 	}
 
-	from, to := calcDateRange(numMonths)
+	daysAvailable := s.daysOfData(userID)
+	if daysAvailable < req.minDays {
+		return nil, apperr.BadRequestWithData(
+			fmt.Sprintf("data belum cukup untuk passport periode %s", req.label),
+			model.EligibilityGapDetail{
+				Period:        period,
+				DaysAvailable: daysAvailable,
+				DaysRequired:  req.minDays,
+				RemainingDays: req.minDays - daysAvailable,
+			},
+		)
+	}
 
 	forecast, err := s.forecastRepo.GetByUserID(s.db, userID)
 	if err != nil {
 		return nil, apperr.BadRequest("data forecast belum tersedia, catat minimal 30 hari transaksi terlebih dahulu")
 	}
 
+	daysUsed, from, to := periodWindow(daysAvailable, req.fullDays)
+
 	txs, err := s.transactionRepo.GetByUserIDAndDateRange(s.db, userID, from, to)
 	if err != nil {
 		return nil, apperr.InternalServer("gagal mengambil data transaksi")
 	}
 
-	emiValue := sumTransactions(txs) / float64(numMonths)
+	emiValue := sumTransactions(txs) / (float64(daysUsed) / 30.0)
 
 	return &model.PassportPreviewResponse{
 		PeriodType:     period,
 		PeriodLabel:    buildPeriodLabel(period, from, to, false),
 		PeriodStart:    from.Format("2006-01-02"),
 		PeriodEnd:      to.Format("2006-01-02"),
+		DaysUsed:       daysUsed,
+		DaysRequired:   req.minDays,
+		IsFullPeriod:   daysAvailable >= req.fullDays,
 		EMIValue:       emiValue,
 		StabilityLabel: stabilityLabel(forecast.TrendDirection),
 		TrendDirection: forecast.TrendDirection,
@@ -102,9 +130,21 @@ func (s *PassportService) PreviewPassport(userID uuid.UUID, period string) (*mod
 }
 
 func (s *PassportService) IssuePassport(userID uuid.UUID, period string) (*model.IssuePassportResponse, error) {
-	numMonths, err := periodToMonths(period)
-	if err != nil {
-		return nil, err
+	req, ok := periodRequirements[period]
+	if !ok {
+		return nil, apperr.BadRequest("period tidak valid, gunakan: 3_bulan, 6_bulan, atau 12_bulan")
+	}
+
+	daysAvailable := s.daysOfData(userID)
+	if daysAvailable < req.minDays {
+		return nil, apperr.BadRequestWithData(
+			fmt.Sprintf("data belum cukup untuk menerbitkan passport periode %s", req.label),
+			model.EligibilityGapDetail{
+				DaysAvailable: daysAvailable,
+				DaysRequired:  req.minDays,
+				RemainingDays: req.minDays - daysAvailable,
+			},
+		)
 	}
 
 	forecast, err := s.forecastRepo.GetByUserID(s.db, userID)
@@ -112,14 +152,14 @@ func (s *PassportService) IssuePassport(userID uuid.UUID, period string) (*model
 		return nil, apperr.BadRequest("data forecast belum tersedia, catat minimal 30 hari transaksi terlebih dahulu")
 	}
 
-	from, to := calcDateRange(numMonths)
+	daysUsed, from, to := periodWindow(daysAvailable, req.fullDays)
 
 	txs, err := s.transactionRepo.GetByUserIDAndDateRange(s.db, userID, from, to)
 	if err != nil {
 		return nil, apperr.InternalServer("gagal mengambil data transaksi")
 	}
 
-	emiValue := sumTransactions(txs) / float64(numMonths)
+	emiValue := sumTransactions(txs) / (float64(daysUsed) / 30.0)
 
 	lastTx, err := s.transactionRepo.GetLastByUserID(s.db, userID)
 	if err != nil {
@@ -164,48 +204,61 @@ func (s *PassportService) IssuePassport(userID uuid.UUID, period string) (*model
 	}, nil
 }
 
-// buildEligibility constructs eligibility data, using ForecastResult if available.
+// buildEligibility constructs per-period eligibility data, using ForecastResult if available.
 func (s *PassportService) buildEligibility(userID uuid.UUID) model.PassportEligibility {
-	daysOfData := 0
-	var entriesVerified int64
+	daysOfData, entriesVerified := s.daysOfDataAndEntries(userID)
 
-	if forecast, err := s.forecastRepo.GetByUserID(s.db, userID); err == nil {
-		daysOfData = forecast.DaysOfData
-		entriesVerified = int64(forecast.TransactionCount)
-	} else {
-		count, _ := s.transactionRepo.CountSuccessByUserID(s.db, userID)
-		entriesVerified = count
-		daysOfData = int(count)
+	periods := make([]model.PeriodEligibility, 0, len(periodOrder))
+	anyEligible := false
+	for _, key := range periodOrder {
+		req := periodRequirements[key]
+		eligible := daysOfData >= req.minDays
+		if eligible {
+			anyEligible = true
+		}
+
+		remaining := max(req.minDays-daysOfData, 0)
+
+		periods = append(periods, model.PeriodEligibility{
+			Period:        key,
+			Label:         req.label,
+			IsEligible:    eligible,
+			DaysRequired:  req.minDays,
+			DaysAvailable: daysOfData,
+			RemainingDays: remaining,
+		})
 	}
 
 	return model.PassportEligibility{
-		IsEligible:      daysOfData >= minDaysRequired,
+		IsEligible:      anyEligible,
 		DaysOfData:      daysOfData,
-		MinRequired:     minDaysRequired,
 		EntriesVerified: entriesVerified,
+		Periods:         periods,
 	}
 }
 
-func periodToMonths(period string) (int, error) {
-	switch period {
-	case "3_bulan":
-		return 3, nil
-	case "6_bulan":
-		return 6, nil
-	case "12_bulan":
-		return 12, nil
-	default:
-		return 0, apperr.BadRequest("period tidak valid, gunakan: 3_bulan, 6_bulan, atau 12_bulan")
-	}
+func (s *PassportService) daysOfData(userID uuid.UUID) int {
+	days, _ := s.daysOfDataAndEntries(userID)
+	return days
 }
 
-// calcDateRange returns (firstDayOfStartMonth, lastDayOfCurrentMonth).
-func calcDateRange(numMonths int) (time.Time, time.Time) {
-	now := time.Now()
-	firstCurrentMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	from := firstCurrentMonth.AddDate(0, -(numMonths - 1), 0)
-	to := firstCurrentMonth.AddDate(0, 1, -1)
-	return from, to
+func (s *PassportService) daysOfDataAndEntries(userID uuid.UUID) (int, int64) {
+	if forecast, err := s.forecastRepo.GetByUserID(s.db, userID); err == nil {
+		return forecast.DaysOfData, int64(forecast.TransactionCount)
+	}
+
+	count, _ := s.transactionRepo.CountSuccessByUserID(s.db, userID)
+	return int(count), count
+}
+
+// periodWindow returns (daysUsed, periodStart, periodEnd) reflecting the
+// actual data coverage available: capped at fullDays, ending today.
+func periodWindow(daysAvailable, fullDays int) (int, time.Time, time.Time) {
+	daysUsed := min(daysAvailable, fullDays)
+
+	to := time.Now()
+	from := to.AddDate(0, 0, -daysUsed)
+	return daysUsed, from, to
 }
 
 // buildPeriodLabel builds display labels like "Apr–Jun 2026" (withYear=true) or "Apr–Jun" (withYear=false).

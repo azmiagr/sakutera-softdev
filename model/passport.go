@@ -1,10 +1,26 @@
 package model
 
+type PeriodEligibility struct {
+	Period        string `json:"period"`
+	Label         string `json:"label"`
+	IsEligible    bool   `json:"is_eligible"`
+	DaysRequired  int    `json:"days_required"`
+	DaysAvailable int    `json:"days_available"`
+	RemainingDays int    `json:"remaining_days"`
+}
+
 type PassportEligibility struct {
-	IsEligible      bool  `json:"is_eligible"`
-	DaysOfData      int   `json:"days_of_data"`
-	MinRequired     int   `json:"min_required"`
-	EntriesVerified int64 `json:"entries_verified"`
+	IsEligible      bool                `json:"is_eligible"`
+	DaysOfData      int                 `json:"days_of_data"`
+	EntriesVerified int64               `json:"entries_verified"`
+	Periods         []PeriodEligibility `json:"periods"`
+}
+
+type EligibilityGapDetail struct {
+	Period        string `json:"period,omitempty"`
+	DaysAvailable int    `json:"days_available"`
+	DaysRequired  int    `json:"days_required"`
+	RemainingDays int    `json:"remaining_days"`
 }
 
 type ActivePassportItem struct {
@@ -27,6 +43,9 @@ type PassportPreviewResponse struct {
 	PeriodLabel    string  `json:"period_label"`
 	PeriodStart    string  `json:"period_start"`
 	PeriodEnd      string  `json:"period_end"`
+	DaysUsed       int     `json:"days_used"`
+	DaysRequired   int     `json:"days_required"`
+	IsFullPeriod   bool    `json:"is_full_period"`
 	EMIValue       float64 `json:"emi_value"`
 	StabilityLabel string  `json:"stability_label"`
 	TrendDirection string  `json:"trend_direction"`

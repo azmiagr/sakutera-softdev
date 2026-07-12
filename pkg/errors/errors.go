@@ -9,6 +9,7 @@ type AppError struct {
 	Code    int
 	Message string
 	Err     error
+	Data    any
 }
 
 func (e *AppError) Error() string {
@@ -31,6 +32,18 @@ func BadRequest(message string) *AppError {
 		Code:    http.StatusBadRequest,
 		Message: message,
 		Err:     errors.New(message),
+	}
+}
+
+// BadRequestWithData is like BadRequest but attaches structured data to the
+// response instead of just an error string — useful when the client needs
+// machine-readable detail (e.g. eligibility gaps) alongside the message.
+func BadRequestWithData(message string, data any) *AppError {
+	return &AppError{
+		Code:    http.StatusBadRequest,
+		Message: message,
+		Err:     errors.New(message),
+		Data:    data,
 	}
 }
 
