@@ -21,6 +21,10 @@ var allowedImageExts = map[string]bool{
 	".webp": true,
 }
 
+func IsAllowedImageExt(ext string) bool {
+	return allowedImageExts[strings.ToLower(ext)]
+}
+
 func ConvertToWebP(file *multipart.FileHeader) ([]byte, error) {
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if !allowedImageExts[ext] {

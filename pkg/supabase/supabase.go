@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/azmiagr/sakutera-softdev/pkg/imageutil"
 	"github.com/google/uuid"
@@ -50,6 +51,37 @@ func UploadOptionalImage(storage Interface, file *multipart.FileHeader, maxSize 
 	}
 
 	return storage.UploadFile(file)
+}
+
+// UploadOptionalAttachment accepts either an image (converted to WebP) or a
+// PDF, dispatching based on file extension. Returns the uploaded file's
+// public URL and its stored content type ("image/webp" or "application/pdf").
+func UploadOptionalAttachment(storage Interface, file *multipart.FileHeader, maxSize int64, sizeErr string) (string, string, error) {
+	if file == nil {
+		return "", "", nil
+	}
+
+	if file.Size > maxSize {
+		return "", "", errors.New(sizeErr)
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	switch {
+	case ext == ".pdf":
+		url, err := storage.UploadPDF(file)
+		if err != nil {
+			return "", "", err
+		}
+		return url, "application/pdf", nil
+	case imageutil.IsAllowedImageExt(ext):
+		url, err := storage.UploadFile(file)
+		if err != nil {
+			return "", "", err
+		}
+		return url, "image/webp", nil
+	default:
+		return "", "", fmt.Errorf("format file tidak didukung, gunakan JPG/PNG/WEBP/PDF")
+	}
 }
 
 func DeleteFileIfPresent(storage Interface, fileURL string) error {

@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const maxAttachmentSize = 5 * 1024 * 1024 // 5MB
+const maxAttachmentSize = 10 * 1024 * 1024 // 10MB (foto atau PDF struk)
 
 type ITransactionService interface {
 	GetSources(provider string) (*model.GetTransactionSourcesResponse, error)
@@ -90,11 +90,16 @@ func (s *TransactionService) CreateTransaction(userID uuid.UUID, req model.Creat
 	}
 
 	if req.AttachmentURL != "" {
+		fileType := "image/webp"
+		if strings.HasSuffix(strings.ToLower(req.AttachmentURL), ".pdf") {
+			fileType = "application/pdf"
+		}
+
 		attachment := &entity.Attachment{
 			AttachmentID:  uuid.New(),
 			TransactionID: t.TransactionID,
 			FileURL:       req.AttachmentURL,
-			FileType:      "image/webp",
+			FileType:      fileType,
 		}
 		if err := s.attachmentRepo.Create(s.db, attachment); err != nil {
 			return nil, apperr.InternalServer("gagal menyimpan lampiran bukti transaksi")
@@ -113,12 +118,12 @@ func (s *TransactionService) CreateTransaction(userID uuid.UUID, req model.Creat
 }
 
 func (s *TransactionService) UploadAttachment(file *multipart.FileHeader, req model.UploadAttachmentRequest) (*model.UploadAttachmentResponse, error) {
-	url, err := supabase.UploadOptionalImage(s.storage, file, maxAttachmentSize, "ukuran foto maksimal 5MB")
+	url, fileType, err := supabase.UploadOptionalAttachment(s.storage, file, maxAttachmentSize, "ukuran file maksimal 10MB")
 	if err != nil {
 		return nil, apperr.BadRequest(err.Error())
 	}
 	if url == "" {
-		return nil, apperr.BadRequest("foto bukti transaksi tidak boleh kosong")
+		return nil, apperr.BadRequest("foto atau PDF bukti transaksi tidak boleh kosong")
 	}
 
 	if req.Amount < 0 {
@@ -133,7 +138,7 @@ func (s *TransactionService) UploadAttachment(file *multipart.FileHeader, req mo
 
 	resp := &model.UploadAttachmentResponse{
 		AttachmentURL:   url,
-		FileType:        "image/webp",
+		FileType:        fileType,
 		Amount:          req.Amount,
 		TransactionDate: req.TransactionDate,
 		Category:        req.Description,
