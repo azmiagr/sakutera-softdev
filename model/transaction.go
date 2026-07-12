@@ -5,6 +5,26 @@ type CreateTransactionRequest struct {
 	TransactionSourceID string  `json:"transaction_source_id" binding:"required"`
 	TransactionDate     string  `json:"transaction_date" binding:"required"`
 	Description         string  `json:"description"`
+	AttachmentURL       string  `json:"attachment_url"`
+}
+
+type UploadAttachmentRequest struct {
+	Amount              float64 `form:"amount"`
+	TransactionSourceID string  `form:"transaction_source_id"`
+	TransactionDate     string  `form:"transaction_date"`
+	Description         string  `form:"description"`
+}
+
+type UploadAttachmentResponse struct {
+	AttachmentURL       string  `json:"attachment_url"`
+	FileType            string  `json:"file_type"`
+	Amount              float64 `json:"amount"`
+	TransactionSourceID string  `json:"transaction_source_id"`
+	SourceName          string  `json:"source_name"`
+	SourceProvider      string  `json:"source_provider"`
+	TransactionDate     string  `json:"transaction_date"`
+	Category            string  `json:"category"`
+	Status              string  `json:"status"`
 }
 
 type TransactionItem struct {

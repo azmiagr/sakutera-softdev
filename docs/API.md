@@ -26,6 +26,7 @@ Setelah Step 2 berhasil, simpan `token` dari response — dipakai sebagai Bearer
 **POST** `/auth/register`
 
 Request:
+
 ```json
 {
   "phone_number": "081234567890",
@@ -34,6 +35,7 @@ Request:
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": {
@@ -50,6 +52,7 @@ Response `200 OK`:
 ```
 
 Response `409 Conflict` (nomor sudah terdaftar):
+
 ```json
 {
   "status": {
@@ -62,6 +65,7 @@ Response `409 Conflict` (nomor sudah terdaftar):
 ```
 
 Response `400 Bad Request` (field kosong):
+
 ```json
 {
   "status": {
@@ -80,11 +84,13 @@ Response `400 Bad Request` (field kosong):
 **POST** `/auth/check-phone`
 
 Request:
+
 ```json
 { "phone_number": "081234567890" }
 ```
 
 Response `200 OK` — sudah punya PIN:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -94,6 +100,7 @@ Response `200 OK` — sudah punya PIN:
 ```
 
 Response `200 OK` — belum punya PIN:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -106,6 +113,7 @@ Response `200 OK` — belum punya PIN:
 ```
 
 Response `404 Not Found`:
+
 ```json
 {
   "status": { "code": 404, "isSuccess": false },
@@ -115,6 +123,7 @@ Response `404 Not Found`:
 ```
 
 Response `400 Bad Request` (belum verifikasi OTP):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -130,16 +139,19 @@ Response `400 Bad Request` (belum verifikasi OTP):
 **POST** `/auth/set-pin`
 
 Header:
+
 ```
 X-Session-Token: <session_token dari check-phone>
 ```
 
 Request:
+
 ```json
 { "pin": "123456" }
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -154,6 +166,7 @@ Response `200 OK`:
 > Setelah set PIN, simpan `token` ini sebagai `Authorization: Bearer <token>`.
 
 Response `400 Bad Request` (PIN bukan 6 digit angka):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -163,6 +176,7 @@ Response `400 Bad Request` (PIN bukan 6 digit angka):
 ```
 
 Response `401 Unauthorized` (session expired):
+
 ```json
 {
   "status": { "code": 401, "isSuccess": false },
@@ -178,6 +192,7 @@ Response `401 Unauthorized` (session expired):
 **POST** `/auth/login`
 
 Request:
+
 ```json
 {
   "phone_number": "081234567890",
@@ -186,6 +201,7 @@ Request:
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -198,6 +214,7 @@ Response `200 OK`:
 ```
 
 Response `404 Not Found`:
+
 ```json
 {
   "status": { "code": 404, "isSuccess": false },
@@ -207,6 +224,7 @@ Response `404 Not Found`:
 ```
 
 Response `401 Unauthorized` (PIN salah):
+
 ```json
 {
   "status": { "code": 401, "isSuccess": false },
@@ -222,11 +240,13 @@ Response `401 Unauthorized` (PIN salah):
 **POST** `/auth/logout`
 
 Header:
+
 ```
 Authorization: Bearer <token>
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -238,6 +258,7 @@ Response `200 OK`:
 > Token yang sudah dipakai untuk logout langsung diblacklist di server. Request berikutnya ke endpoint mana pun yang butuh `Authorization: Bearer <token>` dengan token yang sama akan ditolak (401), meski token tsb belum kedaluwarsa. Frontend wajib menghapus token dari storage lokal setelah logout berhasil.
 
 Response `401 Unauthorized` (token tidak ada / tidak valid):
+
 ```json
 {
   "status": { "code": 401, "isSuccess": false },
@@ -247,6 +268,7 @@ Response `401 Unauthorized` (token tidak ada / tidak valid):
 ```
 
 Response `401 Unauthorized` (token sudah pernah di-logout sebelumnya):
+
 ```json
 {
   "status": { "code": 401, "isSuccess": false },
@@ -262,11 +284,13 @@ Response `401 Unauthorized` (token sudah pernah di-logout sebelumnya):
 **POST** `/auth/verify-otp`
 
 Header:
+
 ```
 X-Session-Token: <session_token dari Step 1>
 ```
 
 Request:
+
 ```json
 {
   "code": "123456"
@@ -274,6 +298,7 @@ Request:
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": {
@@ -291,6 +316,7 @@ Response `200 OK`:
 > **Simpan `token` ini** — digunakan sebagai `Authorization: Bearer <token>` untuk semua endpoint selanjutnya.
 
 Response `400 Bad Request` (OTP salah):
+
 ```json
 {
   "status": {
@@ -303,6 +329,7 @@ Response `400 Bad Request` (OTP salah):
 ```
 
 Response `401 Unauthorized` (session expired):
+
 ```json
 {
   "status": {
@@ -319,6 +346,7 @@ Response `401 Unauthorized` (session expired):
 ## Onboarding
 
 Semua endpoint onboarding memerlukan header:
+
 ```
 Authorization: Bearer <token dari Step 2>
 ```
@@ -330,11 +358,13 @@ Authorization: Bearer <token dari Step 2>
 **GET** `/onboarding/work-categories`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": {
@@ -348,45 +378,90 @@ Response `200 OK`:
         "work_category_id": "550e8400-e29b-41d4-a716-446655440001",
         "name": "Pengemudi Ojol",
         "platforms": [
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440010", "name": "Gojek" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440011", "name": "Grab" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440012", "name": "Maxim" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440013", "name": "InDriver" }
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440010",
+            "name": "Gojek"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440011",
+            "name": "Grab"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440012",
+            "name": "Maxim"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440013",
+            "name": "InDriver"
+          }
         ]
       },
       {
         "work_category_id": "550e8400-e29b-41d4-a716-446655440002",
         "name": "Kurir Online",
         "platforms": [
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440020", "name": "ShopeeFood" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440021", "name": "GoSend" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440022", "name": "J&T" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440023", "name": "JNE" }
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440020",
+            "name": "ShopeeFood"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440021",
+            "name": "GoSend"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440022",
+            "name": "J&T"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440023",
+            "name": "JNE"
+          }
         ]
       },
       {
         "work_category_id": "550e8400-e29b-41d4-a716-446655440003",
         "name": "Freelancer",
         "platforms": [
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440030", "name": "Fiverr" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440031", "name": "Upwork" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440032", "name": "Freelancer.com" }
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440030",
+            "name": "Fiverr"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440031",
+            "name": "Upwork"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440032",
+            "name": "Freelancer.com"
+          }
         ]
       },
       {
         "work_category_id": "550e8400-e29b-41d4-a716-446655440004",
         "name": "Pedagang UMKM",
         "platforms": [
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440040", "name": "Tokopedia" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440041", "name": "Shopee" },
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440042", "name": "Warung Offline" }
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440040",
+            "name": "Tokopedia"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440041",
+            "name": "Shopee"
+          },
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440042",
+            "name": "Warung Offline"
+          }
         ]
       },
       {
         "work_category_id": "550e8400-e29b-41d4-a716-446655440005",
         "name": "Pekerjaan Lainnya",
         "platforms": [
-          { "work_platform_id": "550e8400-e29b-41d4-a716-446655440050", "name": "Lainnya" }
+          {
+            "work_platform_id": "550e8400-e29b-41d4-a716-446655440050",
+            "name": "Lainnya"
+          }
         ]
       }
     ]
@@ -397,6 +472,7 @@ Response `200 OK`:
 > UUIDs di atas adalah contoh ilustrasi. UUID asli akan berbeda sesuai data yang di-seed ke database.
 
 Response `401 Unauthorized` (token tidak ada / tidak valid):
+
 ```json
 {
   "status": {
@@ -415,12 +491,14 @@ Response `401 Unauthorized` (token tidak ada / tidak valid):
 **POST** `/onboarding/work-platform`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
 
 Request (gunakan `work_platform_id` dari response GET di atas):
+
 ```json
 {
   "work_platform_id": "550e8400-e29b-41d4-a716-446655440010"
@@ -428,6 +506,7 @@ Request (gunakan `work_platform_id` dari response GET di atas):
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": {
@@ -442,6 +521,7 @@ Response `200 OK`:
 ```
 
 Response `400 Bad Request` (UUID format salah):
+
 ```json
 {
   "status": {
@@ -454,6 +534,7 @@ Response `400 Bad Request` (UUID format salah):
 ```
 
 Response `404 Not Found` (UUID tidak ada di DB):
+
 ```json
 {
   "status": {
@@ -472,11 +553,13 @@ Response `404 Not Found` (UUID tidak ada di DB):
 **GET** `/onboarding/income-sources`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": {
@@ -510,12 +593,14 @@ Response `200 OK`:
 **POST** `/onboarding/income-source`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
 
 Request:
+
 ```json
 {
   "income_source_type": "manual"
@@ -523,6 +608,7 @@ Request:
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": {
@@ -537,6 +623,7 @@ Response `200 OK`:
 ```
 
 Response `400 Bad Request` (tipe tidak valid — hanya `manual` yang diizinkan saat ini):
+
 ```json
 {
   "status": {
@@ -553,6 +640,7 @@ Response `400 Bad Request` (tipe tidak valid — hanya `manual` yang diizinkan s
 ## Income Passport
 
 Semua endpoint passport memerlukan header:
+
 ```
 Authorization: Bearer <token dari Step 2>
 ```
@@ -564,6 +652,7 @@ Authorization: Bearer <token dari Step 2>
 **GET** `/passport`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -598,11 +687,12 @@ Response `200 OK`:
 
 Query Params:
 
-| Param | Wajib | Keterangan |
-|-------|-------|-----------|
-| `period` | ✅ | `3_bulan` \| `6_bulan` \| `12_bulan` |
+| Param    | Wajib | Keterangan                           |
+| -------- | ----- | ------------------------------------ |
+| `period` | ✅    | `3_bulan` \| `6_bulan` \| `12_bulan` |
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -627,6 +717,7 @@ Response `200 OK`:
 > `stability_label`: `STABIL` (trend up) · `CUKUP STABIL` (stable) · `FLUKTUATIF` (down).
 
 Response `400 Bad Request` (forecast belum ada):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -642,17 +733,19 @@ Response `400 Bad Request` (forecast belum ada):
 **POST** `/passport`
 
 Request:
+
 ```json
 {
   "period": "3_bulan"
 }
 ```
 
-| Field | Tipe | Wajib | Keterangan |
-|-------|------|-------|-----------|
-| `period` | string | ✅ | `3_bulan` \| `6_bulan` \| `12_bulan` |
+| Field    | Tipe   | Wajib | Keterangan                           |
+| -------- | ------ | ----- | ------------------------------------ |
+| `period` | string | ✅    | `3_bulan` \| `6_bulan` \| `12_bulan` |
 
 Response `201 Created`:
+
 ```json
 {
   "status": { "code": 201, "isSuccess": true },
@@ -672,6 +765,7 @@ Response `201 Created`:
 > `passport_number` format: `SKT-{TAHUN}-{2 HURUF ACAK}-{8 KARAKTER HASH TERAKHIR}`.
 
 Response `400 Bad Request` (period tidak valid):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -689,11 +783,13 @@ Response `400 Bad Request` (period tidak valid):
 **GET** `/dashboard`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -747,20 +843,22 @@ Response `200 OK`:
 **GET** `/ledger`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Query Params (opsional):
 
-| Param | Default | Keterangan |
-|-------|---------|-----------|
-| `period` | `all` | Filter periode: `all` \| `bulan_ini` \| `3_bulan` |
-| `source_id` | — | UUID sumber penghasilan (dari `/transactions/sources`) |
+| Param       | Default | Keterangan                                             |
+| ----------- | ------- | ------------------------------------------------------ |
+| `period`    | `all`   | Filter periode: `all` \| `bulan_ini` \| `3_bulan`      |
+| `source_id` | —       | UUID sumber penghasilan (dari `/transactions/sources`) |
 
 Filter dapat dikombinasikan. Contoh: `?period=bulan_ini&source_id=UUID`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -792,6 +890,7 @@ Response `200 OK`:
 > `total_entries` = jumlah transaksi setelah filter diterapkan.
 
 Response `400 Bad Request` (period tidak valid):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -801,6 +900,7 @@ Response `400 Bad Request` (period tidak valid):
 ```
 
 Response `400 Bad Request` (source_id bukan UUID):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -814,6 +914,7 @@ Response `400 Bad Request` (source_id bukan UUID):
 ## Transaksi (Catat Penghasilan)
 
 Semua endpoint transaksi memerlukan header:
+
 ```
 Authorization: Bearer <token dari Step 2>
 ```
@@ -825,45 +926,76 @@ Authorization: Bearer <token dari Step 2>
 **GET** `/transactions/sources`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Query Params:
 
-| Param | Wajib | Keterangan |
-|-------|-------|-----------|
-| `provider` | ❌ | Filter berdasarkan jenis sumber penghasilan / payment provider, contoh: `GoPay`, `OVO`, `ShopeePay`, `Manual`. Jika kosong, semua sumber aktif dikembalikan. |
+| Param      | Wajib | Keterangan                                                                                                                                                   |
+| ---------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `provider` | ❌    | Filter berdasarkan jenis sumber penghasilan / payment provider, contoh: `GoPay`, `OVO`, `ShopeePay`, `Manual`. Jika kosong, semua sumber aktif dikembalikan. |
 
 Contoh: `GET /transactions/sources?provider=GoPay`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
   "message": "sumber penghasilan berhasil diambil",
   "data": {
     "sources": [
-      { "transaction_source_id": "uuid-1", "name": "Gojek",      "provider": "GoPay"     },
-      { "transaction_source_id": "uuid-2", "name": "Grab",       "provider": "OVO"       },
-      { "transaction_source_id": "uuid-3", "name": "ShopeeFood", "provider": "ShopeePay" },
-      { "transaction_source_id": "uuid-4", "name": "GoSend",     "provider": "GoPay"     },
-      { "transaction_source_id": "uuid-5", "name": "Tokopedia",  "provider": "Manual"    },
-      { "transaction_source_id": "uuid-6", "name": "Lainnya",    "provider": "Manual"    }
+      {
+        "transaction_source_id": "uuid-1",
+        "name": "Gojek",
+        "provider": "GoPay"
+      },
+      { "transaction_source_id": "uuid-2", "name": "Grab", "provider": "OVO" },
+      {
+        "transaction_source_id": "uuid-3",
+        "name": "ShopeeFood",
+        "provider": "ShopeePay"
+      },
+      {
+        "transaction_source_id": "uuid-4",
+        "name": "GoSend",
+        "provider": "GoPay"
+      },
+      {
+        "transaction_source_id": "uuid-5",
+        "name": "Tokopedia",
+        "provider": "Manual"
+      },
+      {
+        "transaction_source_id": "uuid-6",
+        "name": "Lainnya",
+        "provider": "Manual"
+      }
     ]
   }
 }
 ```
 
 Response saat `?provider=GoPay`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
   "message": "sumber penghasilan berhasil diambil",
   "data": {
     "sources": [
-      { "transaction_source_id": "uuid-1", "name": "Gojek",  "provider": "GoPay" },
-      { "transaction_source_id": "uuid-4", "name": "GoSend", "provider": "GoPay" }
+      {
+        "transaction_source_id": "uuid-1",
+        "name": "Gojek",
+        "provider": "GoPay"
+      },
+      {
+        "transaction_source_id": "uuid-4",
+        "name": "GoSend",
+        "provider": "GoPay"
+      }
     ]
   }
 }
@@ -873,34 +1005,128 @@ Response saat `?provider=GoPay`:
 
 ---
 
+### Upload Foto Bukti Transaksi (untuk Input via OCR)
+
+**POST** `/transactions/attachments`
+
+Header:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: multipart/form-data
+```
+
+Form field (`multipart/form-data`):
+
+| Field                   | Tipe   | Wajib | Keterangan                                                                                                                             |
+| ----------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `photo`                 | file   | ✅    | Foto struk/bukti transaksi. Format `.jpg`, `.jpeg`, `.png`, atau `.webp`. Maksimal 5MB. Otomatis dikonversi ke WebP sebelum disimpan. |
+| `amount`                | number | ❌    | Nominal hasil OCR (kalau ada), harus ≥ 0. Sekadar diteruskan ke response sebagai preview, tidak divalidasi `> 0` di sini.               |
+| `transaction_source_id` | string (UUID) | ❌ | Sumber penghasilan hasil OCR/pilihan user (kalau ada). Kalau diisi, divalidasi harus ada di `transaction_source`.                        |
+| `transaction_date`      | string | ❌    | Format `YYYY-MM-DD`. Kalau diisi, divalidasi formatnya.                                                                                 |
+| `description`           | string | ❌    | Catatan/kategori hasil OCR (kalau ada).                                                                                                 |
+
+> Field selain `photo` bersifat opsional dan hanya untuk **preview** — endpoint ini tidak menulis apa pun ke tabel `transaction`. Setelah user review/edit hasilnya di FE, kirim ulang datanya (beserta `attachment_url` dari response ini) ke `POST /transactions` untuk benar-benar dicatat ke ledger.
+
+Contoh:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/transactions/attachments \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -F "photo=@struk.jpg" \
+  -F "amount=285000" \
+  -F "transaction_source_id=uuid-dari-sources" \
+  -F "transaction_date=2026-06-29" \
+  -F "description=Trip sore"
+```
+
+Response `200 OK`:
+
+```json
+{
+  "status": { "code": 200, "isSuccess": true },
+  "message": "foto berhasil diupload",
+  "data": {
+    "attachment_url": "https://xxxxx.supabase.co/storage/v1/object/public/bucket/uuid.webp",
+    "file_type": "image/webp",
+    "amount": 285000,
+    "transaction_source_id": "uuid-dari-sources",
+    "source_name": "Gojek",
+    "source_provider": "GoPay",
+    "transaction_date": "2026-06-29",
+    "category": "Trip sore",
+    "status": "pending"
+  }
+}
+```
+
+> `status` selalu `"pending"` — mencerminkan bahwa data ini masih berupa draft/preview dan belum tercatat ke ledger. `source_name`/`source_provider` hanya terisi kalau `transaction_source_id` dikirim & valid.
+
+Response `400 Bad Request` (foto tidak dikirim / format tidak didukung / ukuran > 5MB):
+
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "ukuran foto maksimal 5MB",
+  "data": null
+}
+```
+
+Response `400 Bad Request` (format `transaction_date` salah):
+
+```json
+{
+  "status": { "code": 400, "isSuccess": false },
+  "message": "format transaction_date tidak valid, gunakan YYYY-MM-DD",
+  "data": null
+}
+```
+
+Response `404 Not Found` (`transaction_source_id` tidak ditemukan):
+
+```json
+{
+  "status": { "code": 404, "isSuccess": false },
+  "message": "sumber penghasilan tidak ditemukan",
+  "data": null
+}
+```
+
+---
+
 ### Catat Penghasilan
 
 **POST** `/transactions`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
 
 Request:
+
 ```json
 {
   "amount": 285000,
   "transaction_source_id": "uuid-dari-sources",
   "transaction_date": "2026-06-29",
-  "description": "Trip sore"
+  "description": "Trip sore",
+  "attachment_url": "https://xxxxx.supabase.co/storage/v1/object/public/bucket/uuid.webp"
 }
 ```
 
-| Field | Tipe | Wajib | Keterangan |
-|-------|------|-------|-----------|
-| `amount` | number | ✅ | Nominal dalam IDR, harus > 0 |
-| `transaction_source_id` | string (UUID) | ✅ | Dari endpoint GET /transactions/sources |
-| `transaction_date` | string | ✅ | Format `YYYY-MM-DD` |
-| `description` | string | ❌ | Catatan opsional |
+| Field                   | Tipe          | Wajib | Keterangan                                                                                                                                              |
+| ----------------------- | ------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `amount`                | number        | ✅    | Nominal dalam IDR, harus > 0                                                                                                                            |
+| `transaction_source_id` | string (UUID) | ✅    | Dari endpoint GET /transactions/sources                                                                                                                 |
+| `transaction_date`      | string        | ✅    | Format `YYYY-MM-DD`                                                                                                                                     |
+| `description`           | string        | ❌    | Catatan opsional                                                                                                                                        |
+| `attachment_url`        | string        | ❌    | URL foto bukti dari `POST /transactions/attachments`. Isi field ini untuk mengaitkan foto struk (misal hasil alur input OCR) ke transaksi yang dicatat. |
 
 Response `201 Created`:
+
 ```json
 {
   "status": { "code": 201, "isSuccess": true },
@@ -918,6 +1144,7 @@ Response `201 Created`:
 > `current_hash` adalah SHA-256 dari data transaksi yang di-chain dengan hash transaksi sebelumnya. Ini yang ditampilkan di UI sebagai 8 karakter pertama (e.g., `a3E7b2c1`).
 
 Response `400 Bad Request` (amount tidak valid):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -927,6 +1154,7 @@ Response `400 Bad Request` (amount tidak valid):
 ```
 
 Response `400 Bad Request` (format tanggal salah):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -936,6 +1164,7 @@ Response `400 Bad Request` (format tanggal salah):
 ```
 
 Response `404 Not Found` (source tidak ditemukan):
+
 ```json
 {
   "status": { "code": 404, "isSuccess": false },
@@ -951,17 +1180,19 @@ Response `404 Not Found` (source tidak ditemukan):
 **GET** `/transactions?limit=20`
 
 Header:
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Query Params (opsional):
 
-| Param | Default | Keterangan |
-|-------|---------|-----------|
-| `limit` | 20 | Jumlah transaksi yang dikembalikan |
+| Param   | Default | Keterangan                         |
+| ------- | ------- | ---------------------------------- |
+| `limit` | 20      | Jumlah transaksi yang dikembalikan |
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -996,13 +1227,13 @@ Response `200 OK`:
 
 ## Error Reference
 
-| HTTP Code | Situasi |
-|-----------|---------|
-| 400 | Request body tidak valid / field wajib kosong / nilai tidak sesuai |
-| 401 | Token tidak ada, expired, tidak valid, atau sudah di-logout (blacklisted) |
-| 404 | Resource tidak ditemukan (misal: work_platform_id tidak ada) |
-| 409 | Konflik data (misal: nomor HP sudah terdaftar aktif) |
-| 500 | Internal server error |
+| HTTP Code | Situasi                                                                   |
+| --------- | ------------------------------------------------------------------------- |
+| 400       | Request body tidak valid / field wajib kosong / nilai tidak sesuai        |
+| 401       | Token tidak ada, expired, tidak valid, atau sudah di-logout (blacklisted) |
+| 404       | Resource tidak ditemukan (misal: work_platform_id tidak ada)              |
+| 409       | Konflik data (misal: nomor HP sudah terdaftar aktif)                      |
+| 500       | Internal server error                                                     |
 
 ---
 
@@ -1065,6 +1296,15 @@ curl -X GET http://localhost:8080/api/v1/dashboard \
 curl -X GET http://localhost:8080/api/v1/transactions/sources \
   -H "Authorization: Bearer JWT_TOKEN"
 
+# Upload foto bukti transaksi (untuk alur input via OCR, sekaligus preview hasil OCR)
+curl -X POST http://localhost:8080/api/v1/transactions/attachments \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -F "photo=@struk.jpg" \
+  -F "amount=285000" \
+  -F "transaction_source_id=SOURCE_ID" \
+  -F "transaction_date=2026-06-29" \
+  -F "description=Trip sore"
+
 # Catat Penghasilan (ganti SOURCE_ID dengan UUID dari /transactions/sources)
 curl -X POST http://localhost:8080/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -1074,6 +1314,18 @@ curl -X POST http://localhost:8080/api/v1/transactions \
     "transaction_source_id": "SOURCE_ID",
     "transaction_date": "2026-06-29",
     "description": "Trip sore"
+  }'
+
+# Catat Penghasilan dengan foto bukti (attachment_url dari langkah upload di atas)
+curl -X POST http://localhost:8080/api/v1/transactions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -d '{
+    "amount": 285000,
+    "transaction_source_id": "SOURCE_ID",
+    "transaction_date": "2026-06-29",
+    "description": "Trip sore",
+    "attachment_url": "ATTACHMENT_URL"
   }'
 
 # List transaksi
@@ -1166,6 +1418,7 @@ curl -X GET http://localhost:8080/api/v1/passport/access/logs \
 Header: `Authorization: Bearer <token>`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -1200,6 +1453,7 @@ Response `200 OK`:
 Header: `Authorization: Bearer <token>`
 
 Request:
+
 ```json
 {
   "organization_id": "uuid-organisasi",
@@ -1212,6 +1466,7 @@ Request:
 > `data_scope` valid values: `"emi"`, `"stability"`, `"risk"`, `"full"`. `expires_in_days` = 0 berarti tidak ada batas waktu.
 
 Response `201 Created`:
+
 ```json
 {
   "status": { "code": 201, "isSuccess": true },
@@ -1221,6 +1476,7 @@ Response `201 Created`:
 ```
 
 Response `400 Bad Request` (passport belum diterbitkan):
+
 ```json
 {
   "status": { "code": 400, "isSuccess": false },
@@ -1230,6 +1486,7 @@ Response `400 Bad Request` (passport belum diterbitkan):
 ```
 
 Response `409 Conflict` (akses sudah ada):
+
 ```json
 {
   "status": { "code": 409, "isSuccess": false },
@@ -1247,6 +1504,7 @@ Response `409 Conflict` (akses sudah ada):
 Header: `Authorization: Bearer <token>`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -1256,6 +1514,7 @@ Response `200 OK`:
 ```
 
 Response `404 Not Found`:
+
 ```json
 {
   "status": { "code": 404, "isSuccess": false },
@@ -1275,9 +1534,11 @@ Response `404 Not Found`:
 Header: `Authorization: Bearer <token>`
 
 Query params:
+
 - `filter` (opsional): `""` (semua) atau `"income_passport"`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
@@ -1322,13 +1583,22 @@ Response `200 OK`:
 Header: `Authorization: Bearer <token>`
 
 Response `200 OK`:
+
 ```json
 {
   "status": { "code": 200, "isSuccess": true },
   "message": "daftar organisasi berhasil dimuat",
   "data": [
-    { "organization_id": "uuid", "name": "Koperasi Sejahtera Jawa", "type": "fintech" },
-    { "organization_id": "uuid", "name": "PT BPR Sentosa Digital", "type": "bank" }
+    {
+      "organization_id": "uuid",
+      "name": "Koperasi Sejahtera Jawa",
+      "type": "fintech"
+    },
+    {
+      "organization_id": "uuid",
+      "name": "PT BPR Sentosa Digital",
+      "type": "bank"
+    }
   ]
 }
 ```

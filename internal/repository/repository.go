@@ -16,6 +16,7 @@ type Repository struct {
 	ConsentRepo           IConsentRepository
 	AccessLogRepo         IAccessLogRepository
 	OrganizationRepo      IOrganizationRepository
+	AttachmentRepo        IAttachmentRepository
 }
 
 func NewRepository(db *gorm.DB) *Repository {
@@ -33,5 +34,6 @@ func NewRepository(db *gorm.DB) *Repository {
 		ConsentRepo:           NewConsentRepository(db),
 		AccessLogRepo:         NewAccessLogRepository(db),
 		OrganizationRepo:      NewOrganizationRepository(db),
+		AttachmentRepo:        NewAttachmentRepository(db),
 	}
 }

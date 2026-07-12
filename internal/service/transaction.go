@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"fmt"
+	"mime/multipart"
 	"strings"
 	"time"
 
@@ -12,37 +13,47 @@ import (
 	"github.com/azmiagr/sakutera-softdev/pkg/database/mariadb"
 	apperr "github.com/azmiagr/sakutera-softdev/pkg/errors"
 	"github.com/azmiagr/sakutera-softdev/pkg/mlclient"
+	"github.com/azmiagr/sakutera-softdev/pkg/supabase"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+const maxAttachmentSize = 5 * 1024 * 1024 // 5MB
 
 type ITransactionService interface {
 	GetSources(provider string) (*model.GetTransactionSourcesResponse, error)
 	CreateTransaction(userID uuid.UUID, req model.CreateTransactionRequest) (*model.CreateTransactionResponse, error)
 	GetTransactions(userID uuid.UUID, limit int) (*model.GetTransactionsResponse, error)
 	GetLedger(userID uuid.UUID, period string, sourceID *uuid.UUID) (*model.GetLedgerResponse, error)
+	UploadAttachment(file *multipart.FileHeader, req model.UploadAttachmentRequest) (*model.UploadAttachmentResponse, error)
 }
 
 type TransactionService struct {
-	db               *gorm.DB
-	transactionRepo  repository.ITransactionRepository
-	sourceRepo       repository.ITransactionSourceRepository
-	forecastRepo     repository.IForecastResultRepository
-	mlClient         mlclient.Interface
+	db              *gorm.DB
+	transactionRepo repository.ITransactionRepository
+	sourceRepo      repository.ITransactionSourceRepository
+	forecastRepo    repository.IForecastResultRepository
+	attachmentRepo  repository.IAttachmentRepository
+	mlClient        mlclient.Interface
+	storage         supabase.Interface
 }
 
 func NewTransactionService(
 	transactionRepo repository.ITransactionRepository,
 	sourceRepo repository.ITransactionSourceRepository,
 	forecastRepo repository.IForecastResultRepository,
+	attachmentRepo repository.IAttachmentRepository,
 	mlClient mlclient.Interface,
+	storage supabase.Interface,
 ) ITransactionService {
 	return &TransactionService{
 		db:              mariadb.Connection,
 		transactionRepo: transactionRepo,
 		sourceRepo:      sourceRepo,
 		forecastRepo:    forecastRepo,
+		attachmentRepo:  attachmentRepo,
 		mlClient:        mlClient,
+		storage:         storage,
 	}
 }
 
@@ -106,6 +117,18 @@ func (s *TransactionService) CreateTransaction(userID uuid.UUID, req model.Creat
 		return nil, apperr.InternalServer("gagal menyimpan transaksi")
 	}
 
+	if req.AttachmentURL != "" {
+		attachment := &entity.Attachment{
+			AttachmentID:  uuid.New(),
+			TransactionID: t.TransactionID,
+			FileURL:       req.AttachmentURL,
+			FileType:      "image/webp",
+		}
+		if err := s.attachmentRepo.Create(s.db, attachment); err != nil {
+			return nil, apperr.InternalServer("gagal menyimpan lampiran bukti transaksi")
+		}
+	}
+
 	go s.updateForecast(userID, source.Name)
 
 	return &model.CreateTransactionResponse{
@@ -115,6 +138,53 @@ func (s *TransactionService) CreateTransaction(userID uuid.UUID, req model.Creat
 		Status:        t.Status,
 		Message:       "penghasilan berhasil dicatat ke ledger",
 	}, nil
+}
+
+func (s *TransactionService) UploadAttachment(file *multipart.FileHeader, req model.UploadAttachmentRequest) (*model.UploadAttachmentResponse, error) {
+	url, err := supabase.UploadOptionalImage(s.storage, file, maxAttachmentSize, "ukuran foto maksimal 5MB")
+	if err != nil {
+		return nil, apperr.BadRequest(err.Error())
+	}
+	if url == "" {
+		return nil, apperr.BadRequest("foto bukti transaksi tidak boleh kosong")
+	}
+
+	if req.Amount < 0 {
+		return nil, apperr.BadRequest("amount tidak valid")
+	}
+
+	if req.TransactionDate != "" {
+		if _, err := time.Parse("2006-01-02", req.TransactionDate); err != nil {
+			return nil, apperr.BadRequest("format transaction_date tidak valid, gunakan YYYY-MM-DD")
+		}
+	}
+
+	resp := &model.UploadAttachmentResponse{
+		AttachmentURL:   url,
+		FileType:        "image/webp",
+		Amount:          req.Amount,
+		TransactionDate: req.TransactionDate,
+		Category:        req.Description,
+		Status:          "pending",
+	}
+
+	if req.TransactionSourceID != "" {
+		sourceID, err := uuid.Parse(req.TransactionSourceID)
+		if err != nil {
+			return nil, apperr.BadRequest("transaction_source_id tidak valid")
+		}
+
+		source, err := s.sourceRepo.GetByID(s.db, sourceID)
+		if err != nil {
+			return nil, apperr.NotFound("sumber penghasilan tidak ditemukan")
+		}
+
+		resp.TransactionSourceID = req.TransactionSourceID
+		resp.SourceName = source.Name
+		resp.SourceProvider = source.Provider
+	}
+
+	return resp, nil
 }
 
 func (s *TransactionService) GetTransactions(userID uuid.UUID, limit int) (*model.GetTransactionsResponse, error) {

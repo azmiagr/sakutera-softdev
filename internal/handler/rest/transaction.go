@@ -43,6 +43,34 @@ func (r *Rest) CreateTransaction(c *gin.Context) {
 	response.Success(c, http.StatusCreated, resp.Message, resp)
 }
 
+func (r *Rest) UploadTransactionAttachment(c *gin.Context) {
+	_, err := r.service.JwtAuth.GetLoginUser(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "user tidak ditemukan", err)
+		return
+	}
+
+	file, err := c.FormFile("photo")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "foto tidak ditemukan", err)
+		return
+	}
+
+	var req model.UploadAttachmentRequest
+	if err := c.ShouldBind(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "request tidak valid", err)
+		return
+	}
+
+	resp, err := r.service.TransactionService.UploadAttachment(file, req)
+	if err != nil {
+		response.HandleError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "foto berhasil diupload", resp)
+}
+
 func (r *Rest) GetTransactions(c *gin.Context) {
 	user, err := r.service.JwtAuth.GetLoginUser(c)
 	if err != nil {

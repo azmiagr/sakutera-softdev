@@ -63,6 +63,7 @@ func (r *Rest) MountEndpoint() {
 	tx.GET("/sources", r.GetTransactionSources)
 	tx.POST("", r.CreateTransaction)
 	tx.GET("", r.GetTransactions)
+	tx.POST("/attachments", r.UploadTransactionAttachment)
 }
 
 func (r *Rest) Run() {
